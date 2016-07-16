@@ -61,30 +61,28 @@ void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_recv, (ssize_t* res, int sockfd, void* 
 void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_shutdown, (int* res, int sockfd, int how));
  */
 
-extern "C" {
-	void ocall_tcp_socket(int* sock) {
-		*sock = get_tcp_socket();
-	}
+void ocall_tcp_socket(int* sock) {
+	*sock = get_tcp_socket();
+}
 
-	void ocall_udp_socket(int* sock) {
-		*sock = get_udp_socket();
-	}
+void ocall_udp_socket(int* sock) {
+	*sock = get_udp_socket();
+}
 
-	void ocall_connect_socket(int* res, int fd, uint32_t addr, uint16_t port) {
-		*res = connect_socket(fd, addr, port);
-	}
+void ocall_connect_socket(int* res, int fd, uint32_t addr, uint16_t port) {
+	*res = connect_socket(fd, addr, port);
+}
 
-	void ocall_send(ssize_t* res, int sock, const void* buf, size_t len, int flags) {
-		*res = sgx_send(sock, buf, len, flags);
-	}
+void ocall_send(ssize_t* res, int sock, const void* buf, size_t len, int flags) {
+	*res = sgx_send(sock, buf, len, flags);
+}
 
-	void ocall_recv(ssize_t* res, int sockfd, void* buf, size_t len, int flags) {
-		*res = sgx_recv(sockfd, buf, len, flags);
-	}
+void ocall_recv(ssize_t* res, int sockfd, void* buf, size_t len, int flags) {
+	*res = sgx_recv(sockfd, buf, len, flags);
+}
 
-	void ocall_shutdown(int* res, int sockfd, int how) {
-		*res = sgx_shutdown(sockfd, how);
-	}
+void ocall_shutdown(int* res, int sockfd, int how) {
+	*res = sgx_shutdown(sockfd, how);
 }
 
 

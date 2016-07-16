@@ -15,13 +15,14 @@
 
 static int default_RNG(uint8_t *dest, unsigned size) {
 
-	sgx_status_t res = sgx_read_rand((unsigned char) dest, size);
+	sgx_status_t res = sgx_read_rand((unsigned char*) dest, size);
 
 	if (res == SGX_SUCCESS) {
 		return 1;
 	} else {
 		return 0;
 	}
+}
 #define default_RNG_defined 1
 
 #elif (defined(_WIN32) || defined(_WIN64))

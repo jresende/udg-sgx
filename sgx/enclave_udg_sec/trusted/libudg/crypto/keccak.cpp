@@ -4,8 +4,8 @@
 
 
 #include "keccak.hpp"
-#include "../hexencode.hpp"
 #include <algorithm>
+#include "../hex_encode.hpp"
 
 udg::crypto::keccak256::keccak256() {
     sha3_Init256(&this->ctxt);

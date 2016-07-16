@@ -23,6 +23,8 @@ enclave {
      
     untrusted {
         void ocall_debug([in, string] const char* str);
+        void ocall_print([in, string] const char* str);
+        
         void ocall_tcp_socket([out] int* sock);
         void ocall_udp_socket([out] int* sock);
         void ocall_connect_socket([out] int* res, int fd, uint32_t addr, uint16_t port);
@@ -30,6 +32,11 @@ enclave {
         void ocall_recv([out] long* res, int sockfd, [out, size=len] void *buf, size_t len, int flags);
         
         void ocall_shutdown([out] int* res, int sockfd, int how);
+        
+        void ocall_file_size([out] size_t* res, [in, string] const char* filename);
+        void ocall_read_file([out] int* res, [in, string] const char* filename, [out, size=len] void* out, size_t len);
+        
+        void ocall_write_file([out] int* res, [in, string] const char* filename, [in, size=len] const void* in, size_t len); // Beware confused deputies!
     };
 
 
