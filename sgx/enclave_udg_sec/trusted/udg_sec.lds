@@ -1,0 +1,9 @@
+udg_sec.so
+{
+    global:
+        g_global_data_sim;
+        g_global_data;
+        udg_sec_entry;
+    local:
+        *;
+};
