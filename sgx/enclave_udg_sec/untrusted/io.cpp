@@ -20,6 +20,7 @@ void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_read_file, (int* res, const char* filen
 void ocall_file_size(size_t* res, const char* filename) {
 	FILE* f = fopen(filename, "r");
 
+	*res = 0xFFFFFFFF;
 	if (f == nullptr) {
 		*res = 0;
 	} else {
@@ -29,9 +30,10 @@ void ocall_file_size(size_t* res, const char* filename) {
 		} else {
 			*res = 0;
 		}
+		fclose(f);
 	}
 
-	fclose(f);
+
 }
 
 void ocall_read_file(int* res, const char* filename, void* out, size_t len) {
@@ -41,9 +43,10 @@ void ocall_read_file(int* res, const char* filename, void* out, size_t len) {
 		*res = -1;
 	} else {
 		*res = fread(out, len, 1, f) == 1 ? 0 : 1;
+		fclose(f);
 	}
 
-	fclose(f);
+
 }
 
 void ocall_write_file(int* res, const char* filename, const void* in, size_t len) {
@@ -53,10 +56,11 @@ void ocall_write_file(int* res, const char* filename, const void* in, size_t len
 		*res = -1;
 	} else {
 		*res = fwrite(in, len, 1, f) == 1 ? 0 : 1;
+		fflush(f);
+		fclose(f);
 	}
 
-	fflush(f);
-	fclose(f);
+
 }
 
 void ocall_debug(const char* str) {

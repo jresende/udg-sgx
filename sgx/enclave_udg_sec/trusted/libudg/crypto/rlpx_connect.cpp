@@ -19,6 +19,9 @@
 #include <vector>
 #include <iterator>
 #include <algorithm>
+#include "../io.hpp"
+#include "keccak.hpp"
+#include "secp256k1/include/secp256k1_recovery.h"
 
 #define ENCLAVE_KEY_FILE "rlpx_keys.dat"
 #define KEY_PAIR_SIZE 64U + 32U
@@ -28,6 +31,9 @@ using namespace udg::crypto;
 
 bool keys_loaded = false;
 crypto::RLPxKeyPair enclave_pair;
+
+//secp256k1_context* udg::crypto::secp_ctx(secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY));
+secp256k1_context* udg::crypto::secp_ctx(nullptr);
 
 crypto::RLPxKeyPair::RLPxKeyPair() {
 }
@@ -45,26 +51,35 @@ crypto::RLPxKeyPair& crypto::RLPxKeyPair::operator=(const RLPxKeyPair& that) {
 }
 
 int udg::crypto::load_or_gen_keys() {
-	size_t hash_file_size;
-	ocall_file_size(&hash_file_size, ENCLAVE_KEY_FILE);
 
+	if (keys_loaded) {
+		return 0;
+	}
+
+	size_t hash_file_size;
+
+	ocall_file_size(&hash_file_size, ENCLAVE_KEY_FILE);
 	bool loaded_file = false;
 
 	if (hash_file_size == 0) {
-		ocall_debug("Could not find key file!");
+		io::cdebug.puts("Could not find key file!");
 	} else {
 		if (hash_file_size > 0xFFFF) {
-			ocall_debug("Hash file size seems suspicious... Regenerating.");
+			io::cdebug.puts("Hash file size seems suspicious... Regenerating.");
 		} else {
 			uint32_t l = 0;
 			uint32_t key_dat_len = KEY_PAIR_SIZE;
 			std::auto_ptr<uint8_t> key_file(new uint8_t[hash_file_size]);
 
+			int r;
+			ocall_read_file(&r, ENCLAVE_KEY_FILE, key_file.get(), hash_file_size);
+
 			uint8_t key_data[KEY_PAIR_SIZE];
 			sgx_status_t res = sgx_unseal_data((const sgx_sealed_data_t*) key_file.get(), nullptr, &l, key_data, &key_dat_len);
 
-			if (res != SGX_SUCCESS) {
-				ocall_debug("Key file data corrupted. Regenerating.");
+			if (r != 0 || res != SGX_SUCCESS) {
+				io::cdebug.puts("Key file data corrupted. Regenerating.");
+				printf("%d\n", (int) res);
 			} else {
 				loaded_file = true;
 				memcpy(enclave_pair.pub_key.data(), key_data, sizeof(udg::crypto::RLPxPublicKey));
@@ -79,12 +94,13 @@ int udg::crypto::load_or_gen_keys() {
 	if (!loaded_file) { // Need to generate new keys.
 		int res = uECC_make_key(enclave_pair.pub_key.data(), enclave_pair.priv_key.data(), uECC_secp256k1());
 
-		if (res != 0) {
+		if (res != 1) {
 			return -1;
 		} else {
+			io::cdebug.puts("1");
 			uint8_t key_data[KEY_PAIR_SIZE];
 			enclave_pair.dump_keys(key_data);
-
+			io::cdebug.puts("2");
 			uint32_t sealed_size = sgx_calc_sealed_data_size(0, KEY_PAIR_SIZE);
 
 			std::auto_ptr<uint8_t> sealed_key_file(new uint8_t[sealed_size]);
@@ -100,7 +116,7 @@ int udg::crypto::load_or_gen_keys() {
 			int ret;
 
 			if (res != SGX_SUCCESS) {
-				ocall_debug("Could not encrypt key data. Failing...");
+				io::cdebug.puts("Could not encrypt key data. Failing...");
 				return (int) res;
 			} else {
 				ocall_write_file(&ret, ENCLAVE_KEY_FILE, sealed_key_file.get(), sealed_size);
@@ -117,12 +133,12 @@ void udg::crypto::print_pub_key() {
 	if (!keys_loaded) {
 		int res = crypto::load_or_gen_keys();
 		if (res != 0) {
-			ocall_debug("Could not load keys. Ignore output.");
+			io::cdebug.puts("Could not load keys. Ignore output.");
 		}
 	}
 
 	std::string out = udg::hex_encode(enclave_pair.pub_key.data(), sizeof(crypto::RLPxPublicKey));
-	ocall_print(out.c_str());
+	io::cout.puts(out.c_str());
 }
 
 const crypto::RLPxKeyPair& udg::crypto::get_keys() {
@@ -142,17 +158,149 @@ crypto::RLPxKeyPair udg::crypto::RLPxKeyPair::create_rand() {
 
 udg::crypto::RLPxSession::RLPxSession(RLPxPublicKey node_id, uint32_t inet_addr, uint16_t port) : conn(inet_addr, port) {
 
+	load_or_gen_keys();
 	this->ephemeral_keys = RLPxKeyPair::create_rand();
+	this->dest = node_id;
 
-	std::vector<uint8_t> authInitiator;
+	this->sendAuth();
+	this->recvAck();
 
-	uint8_t static_shared_secret[32] = {};
-	uint8_t ephemeral_shared_secret[32] = {};
+}
 
-	ocall_debug("Generating static shared secret...");
+void udg::crypto::RLPxSession::sendAuth() {
 
-	uECC_shared_secret(node_id.data(), enclave_pair.priv_key.data(), static_shared_secret, uECC_secp256k1());
+	create_nonce(nonce);
 
+	io::cdebug.puts("Generating static shared secret...");
+
+	uECC_shared_secret(this->dest.data(), enclave_pair.priv_key.data(), static_shared_secret.data(), uECC_secp256k1());
+
+	h256 xord_static_nonce = static_shared_secret ^ nonce;
+
+	RLPxSignature signature;
+
+//	uECC_sign(this->ephemeral_keys.priv_key.data(), xord_static_nonce.data(), h256::size, signature.data(), uECC_secp256k1());
+	secp256k1_context* c = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
+	secp256k1_ecdsa_sign_recoverable(c,
+			(secp256k1_ecdsa_recoverable_signature *)signature.data(),
+			xord_static_nonce.data(),
+			this->ephemeral_keys.priv_key.data(),
+			NULL,
+			NULL
+	);
+
+	io::cdebug << "Signature: " << signature.to_string();
+
+	authInitiator.insert(authInitiator.end(), signature.begin(), signature.end());
+	h256 hepubk;
+
+	keccak256 ctxt;
+
+	ctxt.update(this->ephemeral_keys.pub_key.data(), h512::size);
+	ctxt.finalize();
+
+	ctxt.get_digest(hepubk.data());
+
+	authInitiator.insert(authInitiator.end(), hepubk.begin(), hepubk.end());
+	authInitiator.insert(authInitiator.end(), get_keys().pub_key.begin(), get_keys().pub_key.end());
+	authInitiator.insert(authInitiator.end(), nonce.begin(), nonce.end());
+	authInitiator.push_back(0);
+
+	io::cdebug << "Encrypting authInit";
+	io::cdebug << authInitiator.size();
+	io::cdebug << signature.to_string().c_str();
+
+	encryptECIES(this->dest, {}, 0, authInitiator);
+
+	io::cdebug << authInitiator.size();
+
+	this->conn.send(&authInitiator[0], authInitiator.size(), 0x100);
+}
+
+void udg::crypto::RLPxSession::recvAck() {
+	std::vector<uint8_t> ack_cipher(210);
+
+	io::cdebug << "Waiting for ack data...";
+
+	int r = 0;
+	int total_recv = 0;
+	int to_recv = 210;
+	while (to_recv > 0) {
+		if ((r = this->conn.recv(&ack_cipher[total_recv], to_recv, 0x100)) < 0) {
+			throw;
+		}
+		to_recv -= r;
+		total_recv += r;
+	}
+
+	io::cdebug << "Recv ret: " << r;
+	io::cdebug << "Received ack data." << ack_cipher.size();
+	io::cdebug << hex_encode(&ack_cipher[0], ack_cipher.size());
+
+
+	if ((r = decryptECIES(get_keys().priv_key, {}, 0, ack_cipher)) != 0) {
+		io::cdebug << r;
+		throw;
+	}
+
+	io::cdebug << "Decrypted message";
+
+	RLPxPublicKey remote_pub_ephem(ack_cipher.begin(), ack_cipher.begin() + RLPxPublicKey::size);
+	this->remote_nonce = h256(
+			ack_cipher.begin() + RLPxPublicKey::size,
+			ack_cipher.begin() + RLPxPublicKey::size + h256::size
+	);
+
+	uECC_shared_secret(remote_pub_ephem.data(), this->ephemeral_keys.priv_key.data(),
+			this->ephemeral_shared_secret.data(), uECC_secp256k1());
+
+	keccak256 ctxt;
+	ctxt.update(this->nonce.data(), h256::size);
+	ctxt.update(this->remote_nonce.data(), h256::size);
+
+	h256 intermed;
+	ctxt.finalize();
+	ctxt.get_digest(intermed.data());
+
+	ctxt = keccak256();
+	ctxt.update(this->ephemeral_shared_secret.data(), h256::size);
+	ctxt.update(intermed.data(), h256::size);
+	ctxt.finalize();
+	ctxt.get_digest(this->shared_secret.data());
+
+	// Don't care about token right now.
+
+	ctxt = keccak256();
+	ctxt.update(this->ephemeral_shared_secret.data(), h256::size);
+	ctxt.update(this->shared_secret.data(), h256::size);
+	ctxt.finalize();
+	ctxt.get_digest(this->aes_secret.data());
+
+	this->shared_secret.clear();
+
+	ctxt = keccak256();
+	ctxt.update(this->ephemeral_shared_secret.data(), h256::size);
+	ctxt.update(this->aes_secret.data(), h256::size);
+	ctxt.finalize();
+	ctxt.get_digest(this->mac_secret.data());
+
+	this->ephemeral_shared_secret.clear();
+
+	ctxt = keccak256();
+	ctxt.update((this->mac_secret ^ this->nonce).data(), h256::size);
+	ctxt.update(&this->authInitiator[0], authInitiator.size());
+	ctxt.finalize();
+	ctxt.get_digest(this->egress_mac.data());
+
+	this->nonce.clear();
+
+	ctxt = keccak256();
+	ctxt.update((this->mac_secret ^ this->remote_nonce).data(), h256::size);
+	ctxt.update(&ack_cipher[0], ack_cipher.size());
+	ctxt.finalize();
+	ctxt.get_digest(this->ingress_mac.data());
+
+	io::cdebug << "Successfully completed handshake with " << this->dest.to_string() << "\n";
 
 
 }
@@ -195,7 +343,6 @@ std::vector<uint8_t> udg::crypto::eciesKDF(const crypto::RLPxSecret& sec, const 
 
 }
 
-
 void udg::crypto::encryptECIES(const RLPxPublicKey& pub, const uint8_t mac_data[], size_t mac_len, std::vector<uint8_t>& io) {
 	auto r = crypto::RLPxKeyPair::create_rand();
 	crypto::RLPxSecret z;
@@ -232,7 +379,7 @@ void udg::crypto::encryptECIES(const RLPxPublicKey& pub, const uint8_t mac_data[
 			(unsigned char*) &cipher_text[0]);
 
 	if (ret != SGX_SUCCESS) {
-		ocall_debug("Failed to encrypt.");
+		io::cdebug.puts("Failed to encrypt.");
 		printf("Return code: %d\n", (int) ret);
 	}
 
@@ -256,6 +403,7 @@ void udg::crypto::encryptECIES(const RLPxPublicKey& pub, const uint8_t mac_data[
 
 int udg::crypto::decryptECIES(const RLPxPrivateKey& priv, const uint8_t mac_data[], size_t mac_len, std::vector<uint8_t>& io) {
 	if (io.empty() || io[0] < 2 || io[0] > 4) {
+		io::cdebug << (int) io[0];
 		return -1;
 	}
 
@@ -296,12 +444,12 @@ int udg::crypto::decryptECIES(const RLPxPrivateKey& priv, const uint8_t mac_data
 		std::vector<uint8_t> hmac_data;
 		hmac_data.insert(hmac_data.end(), cipherWithIV.begin(), cipherWithIV.end());
 		hmac_data.insert(hmac_data.end(), mac_data, mac_data + mac_len);
-		ocall_debug(hex_encode(std::string(hmac_data.begin(), hmac_data.end())).c_str());
+		io::cdebug.puts(hex_encode(std::string(hmac_data.begin(), hmac_data.end())).c_str());
 		h256 hmac = udg::crypto::hmac_sha256(mKey.data(), h256::size, &hmac_data[0], hmac_data.size());
 
 		if (hmac != mac) {
-			ocall_debug(hmac.to_string().c_str());
-			ocall_debug(mac.to_string().c_str());
+			io::cdebug.puts(hmac.to_string().c_str());
+			io::cdebug.puts(mac.to_string().c_str());
 			return -3;
 		}
 	}

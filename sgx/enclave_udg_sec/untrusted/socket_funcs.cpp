@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <stdio.h>
 
 static int get_tcp_socket() {
     return socket(AF_INET, SOCK_STREAM, 0);
@@ -32,6 +33,7 @@ T byte_swap(T data) {
 	return out;
 }
 
+//the bytes are assigned in left-to-right order to produce the binary address
 static int connect_socket(int fd, uint32_t addr, uint16_t port) {
     sockaddr_in inet_addr;
     inet_addr.sin_addr.s_addr = addr;

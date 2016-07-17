@@ -4,6 +4,10 @@
 
 #include "sockets.hpp"
 #include "intconv.hpp"
+#include "io.hpp"
+#include "hex_encode.hpp"
+#include <string.h>
+#include <stdlib.h>
 #include <algorithm>
 
 int get_tcp_socket();
@@ -12,6 +16,8 @@ int connect_socket(int fd, uint32_t addr, uint16_t port);
 ssize_t sgx_send(int sockfd, const void *buf, size_t len, int flags);
 ssize_t sgx_recv(int sockfd, void *buf, size_t len, int flags);
 int sgx_shutdown(int sockfd, int how);
+
+using namespace udg;
 
 #ifdef NO_INTEL_SGX
 
@@ -66,6 +72,7 @@ int get_udp_socket() {
 int connect_socket(int fd, uint32_t addr, uint16_t port) {
 	int res;
 	ocall_connect_socket(&res, fd, addr, port);
+	io::cdebug << "Connection result: " << res;
 	return res;
 }
 
@@ -108,7 +115,11 @@ udg::SocketConnection::SocketConnection(uint32_t inet_addr, uint16_t port, bool 
         }
     }
 
+    io::cdebug << "conn1";
+
     int conn_stat = connect_socket(sock, inet_addr, port);
+
+    io::cdebug << "conn2";
 
     if (conn_stat < 0) {
         throw conn_stat;
@@ -155,25 +166,37 @@ void udg::SocketConnection::swap(SocketConnection &that) {
     std::swap(this->fd, that.fd);
 }
 
+//the bytes are assigned in left-to-right order to produce the binary address
+// input is xxx.xxx.xxx.xxx
+uint32_t udg::ip_addr_str_to_int(const char* addr, size_t len) {
 
+	char* cpy = (char*) calloc(len+1, sizeof(char));
+	strncpy(cpy, addr, len);
 
+	char* del;
 
+	uint32_t out;
+	uint8_t* out_ptr = reinterpret_cast<uint8_t*>(&out);
 
+	size_t cnt = 0;
+	del = strtok(cpy, ".");
+	while ((del != nullptr) && cnt < 4) {
+		int val = atoi(del);
+		if (val > 255) {
+			return 0;
+		}
 
+		out_ptr[cnt] = (uint8_t) val;
+		cnt++;
 
+		del = strtok(nullptr, ".");
+	}
 
+	free(cpy);
 
+	return out;
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+uint32_t udg::ip_addr_str_to_int(const std::string& str) {
+	return udg::ip_addr_str_to_int(str.c_str(), str.length());
+}

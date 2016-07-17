@@ -150,6 +150,10 @@ namespace udg {
 			return hex_encode(this->_data, FixedSizedByteArray::size);
 		}
 
+		void clear() {
+			memset(this->_data, 0, N);
+		}
+
 	};
 
 	using h128 = FixedSizedByteArray<16>;

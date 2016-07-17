@@ -9,6 +9,8 @@
 #include <vector>
 #include "../sockets.hpp"
 #include "rand.hpp"
+#include "secp256k1/include/secp256k1.h"
+#include <memory>
 
 // Ethereum uses ECIES w/ AES128-CTR-SHA256
 // SHA256 is the sgx sha256
@@ -18,9 +20,12 @@ namespace udg {
 
     namespace crypto {
 
+    	extern secp256k1_context* secp_ctx;
+
     	typedef h512 RLPxPublicKey;
     	typedef h256 RLPxPrivateKey;
     	typedef h256 RLPxSecret;
+    	using RLPxSignature = FixedSizedByteArray<65>;
 
     	void current_rlpx_version(h256& out);
 
@@ -78,7 +83,24 @@ namespace udg {
     	class RLPxSession {
 
     		RLPxKeyPair ephemeral_keys;
+    		RLPxPublicKey dest;
     		SocketConnection conn;
+    		h256 nonce;
+    		h256 static_shared_secret;
+    		h256 ephemeral_shared_secret;
+    		h256 remote_nonce;
+
+    		h256 shared_secret;
+    		h256 aes_secret;
+    		h256 mac_secret;
+
+    		h256 ingress_mac;
+    		h256 egress_mac;
+
+    		std::vector<uint8_t> authInitiator;
+
+    		void sendAuth();
+    		void recvAck();
 
     	public:
     		RLPxSession(RLPxPublicKey node_id, uint32_t inet_addr, uint16_t port);
