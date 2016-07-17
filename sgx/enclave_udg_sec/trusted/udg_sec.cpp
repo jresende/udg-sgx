@@ -15,7 +15,7 @@ void printf(const char *fmt, ...)
     va_start(ap, fmt);
     vsnprintf(buf, BUFSIZ, fmt, ap);
     va_end(ap);
-    ocall_debug(buf);
+    ocall_print(buf);
 }
 
 int ecall_udg_sec_main()

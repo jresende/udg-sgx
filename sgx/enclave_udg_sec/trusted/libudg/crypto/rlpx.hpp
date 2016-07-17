@@ -18,9 +18,9 @@ namespace udg {
 
     namespace crypto {
 
-    	typedef uint8_t RLPxPublicKey[64];
-    	typedef uint8_t RLPxPrivateKey[32];
-    	typedef uint8_t RLPxSecret[32];
+    	typedef h512 RLPxPublicKey;
+    	typedef h256 RLPxPrivateKey;
+    	typedef h256 RLPxSecret;
 
     	void current_rlpx_version(h256& out);
 
@@ -66,7 +66,6 @@ namespace udg {
 
     		RLPxKeyPair();
     		RLPxKeyPair(const RLPxKeyPair& that);
-    		RLPxKeyPair(const RLPxKeyPair&& that) = delete;
 
     		RLPxKeyPair& operator=(const RLPxKeyPair& that);
 

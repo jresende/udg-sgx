@@ -72,5 +72,5 @@ void ocall_debug(const char* str) {
 }
 
 void ocall_print(const char* str) {
-	puts(str);
+	fputs(str, stdout);
 }

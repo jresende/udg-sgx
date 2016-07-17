@@ -8,15 +8,17 @@
 #ifndef SGX_ENCLAVE_UDG_SEC_TRUSTED_LIBUDG_CRYPTO_RAND_HPP_
 #define SGX_ENCLAVE_UDG_SEC_TRUSTED_LIBUDG_CRYPTO_RAND_HPP_
 
+#include <stdint.h>
+#include <sgx_trts.h>
+#include "../byte_array.hpp"
 
 namespace udg {
 
-	typedef uint8_t h256[32];
-	typedef uint8_t h128[16];
-
 	namespace crypto {
-		void create_nonce(h128& out);
-		void create_nonce(h256& out);
+		template <unsigned long int N>
+		void create_nonce(FixedSizedByteArray<N>& out) {
+			sgx_read_rand(out.data(), FixedSizedByteArray<N>::size);
+		}
 	}
 }
 

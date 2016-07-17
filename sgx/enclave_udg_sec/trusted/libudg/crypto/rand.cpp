@@ -6,12 +6,3 @@
  */
 
 #include "rand.hpp"
-#include <sgx_trts.h>
-
-void udg::crypto::create_nonce(udg::h128& out) {
-	sgx_read_rand((unsigned char*)out, sizeof(udg::h128));
-}
-
-void udg::crypto::create_nonce(udg::h256& out) {
-	sgx_read_rand((unsigned char*)out, sizeof(udg::h256));
-}

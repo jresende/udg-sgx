@@ -234,6 +234,10 @@ int SGX_CDECL main(int argc, char *argv[])
     if (ret != SGX_SUCCESS)
         abort();
 
+    ret = ecall_udg_test_ECIES(global_eid, &ecall_return);
+    if (ret != SGX_SUCCESS)
+            abort();
+
     if (ecall_return == 0) {
       printf("Application ran with success\n");
     }

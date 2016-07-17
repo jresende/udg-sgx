@@ -42,5 +42,6 @@ enclave {
 
     trusted {
     	    public int ecall_udg_sec_main();
+    	    public int ecall_udg_test_ECIES();
     };
 };

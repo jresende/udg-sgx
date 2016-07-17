@@ -7,13 +7,15 @@
 
 #include "rlpx.hpp"
 #include "ecc/uECC.h"
-#include "udg_sec_t.h"
+#include "../../udg_sec.h"
+#include "../../udg_sec_t.h"
 #include <sgx_tseal.h>
 #include <sgx_tcrypto.h>
 #include <stdlib.h>
 #include <string.h>
 #include <memory>
 #include "../hex_encode.hpp"
+#include "hmac.hpp"
 #include <vector>
 #include <iterator>
 #include <algorithm>
@@ -22,23 +24,22 @@
 #define KEY_PAIR_SIZE 64U + 32U
 
 using namespace udg;
+using namespace udg::crypto;
 
 bool keys_loaded = false;
 crypto::RLPxKeyPair enclave_pair;
 
 crypto::RLPxKeyPair::RLPxKeyPair() {
-	memset(this->priv_key, 0, sizeof(crypto::RLPxPrivateKey));
-	memset(this->pub_key, 0, sizeof(crypto::RLPxPublicKey));
 }
 
 crypto::RLPxKeyPair::RLPxKeyPair(const crypto::RLPxKeyPair& that) {
-	memcpy(this->priv_key, that.priv_key, sizeof(crypto::RLPxPrivateKey));
-	memcpy(this->pub_key, that.pub_key, sizeof(crypto::RLPxPublicKey));
+	this->priv_key = that.priv_key;
+	this->pub_key = that.pub_key;
 }
 
 crypto::RLPxKeyPair& crypto::RLPxKeyPair::operator=(const RLPxKeyPair& that) {
-	memcpy(this->priv_key, that.priv_key, sizeof(crypto::RLPxPrivateKey));
-	memcpy(this->pub_key, that.pub_key, sizeof(crypto::RLPxPublicKey));
+	this->priv_key = that.priv_key;
+	this->pub_key = that.pub_key;
 
 	return *this;
 }
@@ -66,8 +67,8 @@ int udg::crypto::load_or_gen_keys() {
 				ocall_debug("Key file data corrupted. Regenerating.");
 			} else {
 				loaded_file = true;
-				memcpy(enclave_pair.pub_key, key_data, sizeof(udg::crypto::RLPxPublicKey));
-				memcpy(enclave_pair.priv_key,
+				memcpy(enclave_pair.pub_key.data(), key_data, sizeof(udg::crypto::RLPxPublicKey));
+				memcpy(enclave_pair.priv_key.data(),
 						key_data + sizeof(udg::crypto::RLPxPublicKey),
 						sizeof(udg::crypto::RLPxPrivateKey));
 				return 0;
@@ -76,7 +77,7 @@ int udg::crypto::load_or_gen_keys() {
 	}
 
 	if (!loaded_file) { // Need to generate new keys.
-		int res = uECC_make_key(enclave_pair.pub_key, enclave_pair.priv_key, uECC_secp256k1());
+		int res = uECC_make_key(enclave_pair.pub_key.data(), enclave_pair.priv_key.data(), uECC_secp256k1());
 
 		if (res != 0) {
 			return -1;
@@ -120,7 +121,7 @@ void udg::crypto::print_pub_key() {
 		}
 	}
 
-	std::string out = udg::hex_encode(enclave_pair.pub_key, sizeof(crypto::RLPxPublicKey));
+	std::string out = udg::hex_encode(enclave_pair.pub_key.data(), sizeof(crypto::RLPxPublicKey));
 	ocall_print(out.c_str());
 }
 
@@ -129,13 +130,13 @@ const crypto::RLPxKeyPair& udg::crypto::get_keys() {
 }
 
 void udg::crypto::RLPxKeyPair::dump_keys(uint8_t out[]) const {
-	memcpy(out, this->pub_key, sizeof(crypto::RLPxPublicKey));
-	memcpy(out + sizeof(crypto::RLPxPublicKey), this->priv_key, sizeof(crypto::RLPxPrivateKey));
+	memcpy(out, this->pub_key.data(), RLPxPublicKey::size);
+	memcpy(out + RLPxPublicKey::size, this->priv_key.data(), RLPxPrivateKey::size);
 }
 
 crypto::RLPxKeyPair udg::crypto::RLPxKeyPair::create_rand() {
 	crypto::RLPxKeyPair out;
-	uECC_make_key(out.pub_key, out.priv_key, uECC_secp256k1());
+	uECC_make_key(out.pub_key.data(), out.priv_key.data(), uECC_secp256k1());
 	return out;
 }
 
@@ -150,7 +151,7 @@ udg::crypto::RLPxSession::RLPxSession(RLPxPublicKey node_id, uint32_t inet_addr,
 
 	ocall_debug("Generating static shared secret...");
 
-	uECC_shared_secret(node_id, enclave_pair.priv_key, static_shared_secret, uECC_secp256k1());
+	uECC_shared_secret(node_id.data(), enclave_pair.priv_key.data(), static_shared_secret, uECC_secp256k1());
 
 
 
@@ -171,7 +172,7 @@ std::vector<uint8_t> udg::crypto::eciesKDF(const crypto::RLPxSecret& sec, const 
 
 	for (unsigned i = 0; i <= reps; i++) {
 		sgx_sha256_update(ctr, 4, sha_handle);
-		sgx_sha256_update(sec, sizeof(crypto::RLPxSecret), sha_handle);
+		sgx_sha256_update(sec.data(), RLPxSecret::size, sha_handle);
 		sgx_sha256_update(addl_data, addl_data_len, sha_handle);
 
 		uint8_t digest[32];
@@ -199,7 +200,7 @@ void udg::crypto::encryptECIES(const RLPxPublicKey& pub, const uint8_t mac_data[
 	auto r = crypto::RLPxKeyPair::create_rand();
 	crypto::RLPxSecret z;
 
-	uECC_shared_secret(pub, r.priv_key, z, uECC_secp256k1());
+	uECC_shared_secret(pub.data(), r.priv_key.data(), z.data(), uECC_secp256k1());
 
 	auto key = crypto::eciesKDF(z, {}, 0, 32);
 	uint8_t eKey[16] = {};
@@ -220,25 +221,107 @@ void udg::crypto::encryptECIES(const RLPxPublicKey& pub, const uint8_t mac_data[
 	udg::crypto::create_nonce(iv);
 	std::vector<uint8_t> cipher_text;
 	cipher_text.resize(io.size(), 0);
+	h128 temp_iv(iv);
 
-	sgx_aes_ctr_encrypt(
+	sgx_status_t ret = sgx_aes_ctr_encrypt(
 			(const sgx_aes_ctr_128bit_key_t*)eKey,
 			(const unsigned char*) &io[0],
 			(const uint32_t)io.size(),
-			iv,
-			5,
+			temp_iv.data(),
+			1,
 			(unsigned char*) &cipher_text[0]);
+
+	if (ret != SGX_SUCCESS) {
+		ocall_debug("Failed to encrypt.");
+		printf("Return code: %d\n", (int) ret);
+	}
 
 	std::vector<uint8_t> msg(1 + sizeof(crypto::RLPxPublicKey) + sizeof(udg::h128) + cipher_text.size() + 32);
 	msg[0] = 0x04;
-	std::copy(r.pub_key, r.pub_key + sizeof(crypto::RLPxPublicKey), msg.begin() + 1);
-	std::copy(cipher_text.begin(), cipher_text.end(), msg.begin() + 1 + sizeof(crypto::RLPxPublicKey) + sizeof(udg::h128));
 
+	std::copy(r.pub_key.begin(), r.pub_key.begin() + sizeof(RLPxPublicKey), msg.begin() + 1);
+	std::copy(iv.begin(), iv.end(), msg.begin() + 1 + sizeof(RLPxPublicKey));
+	std::copy(cipher_text.begin(), cipher_text.end(), msg.begin() + 1 + sizeof(RLPxPublicKey) + h128::size);
+
+	std::vector<uint8_t> civ(msg.begin() + 1 + sizeof(RLPxPublicKey), msg.begin() + 1 + sizeof(RLPxPublicKey) + h128::size + cipher_text.size());
+	civ.insert(civ.end(), mac_data, mac_data + mac_len);
+
+	h256 hmc = udg::crypto::hmac_sha256(mKey, 32, &civ[0], civ.size());
+	std::copy(hmc.begin(), hmc.end(), msg.begin() + 1 + sizeof(RLPxPublicKey) + civ.size() - mac_len);
+
+	io.resize(msg.size());
+	io.swap(msg);
 
 }
 
-int udg::crypto::decryptECIES(const RLPxPrivateKey& pub, const uint8_t mac_data[], size_t mac_len, std::vector<uint8_t>& io) {
- return 0;
+int udg::crypto::decryptECIES(const RLPxPrivateKey& priv, const uint8_t mac_data[], size_t mac_len, std::vector<uint8_t>& io) {
+	if (io.empty() || io[0] < 2 || io[0] > 4) {
+		return -1;
+	}
+
+	if (io.size() < (1 + sizeof(RLPxPublicKey) + h128::size + 1 + h256::size)) {
+		return -2;
+	}
+
+	RLPxPrivateKey z;
+
+	RLPxPublicKey from_io;
+	std::copy(io.begin() + 1, io.begin() + 1 + RLPxPublicKey::size, from_io.begin());
+
+	uECC_shared_secret(from_io.data(), priv.data(), z.data(), uECC_secp256k1());
+	auto key = udg::crypto::eciesKDF(z, {}, 0, 64);
+
+	h128 eKey(key.begin(), key.begin() + 16);
+	h128 mKeyMaterial(key.begin() + 16, key.begin() + 32);
+	h256 mKey;
+
+	{
+		sgx_sha_state_handle_t sha_handle;
+		sgx_sha256_init(&sha_handle);
+		sgx_sha256_update(mKeyMaterial.data(), h128::size, sha_handle);
+		sgx_sha256_get_hash(sha_handle, (sgx_sha256_hash_t*) mKey.data());
+		sgx_sha256_close(sha_handle);
+	}
+
+	std::vector<uint8_t> plain;
+	size_t cipherLen = io.size() - 1 - RLPxPublicKey::size - h128::size - h256::size;
+
+	std::vector<uint8_t> cipherWithIV(io.begin() + 1 + RLPxPublicKey::size,
+			io.begin() + 1 + RLPxPublicKey::size + h128::size + cipherLen);
+	h128 cipherIV(cipherWithIV.begin(), cipherWithIV.begin() + h128::size);
+	std::vector<uint8_t> cipher_text(cipherWithIV.begin() + h128::size, cipherWithIV.end());
+
+	{
+		h256 mac(io.end() - 32, io.end());
+		std::vector<uint8_t> hmac_data;
+		hmac_data.insert(hmac_data.end(), cipherWithIV.begin(), cipherWithIV.end());
+		hmac_data.insert(hmac_data.end(), mac_data, mac_data + mac_len);
+		ocall_debug(hex_encode(std::string(hmac_data.begin(), hmac_data.end())).c_str());
+		h256 hmac = udg::crypto::hmac_sha256(mKey.data(), h256::size, &hmac_data[0], hmac_data.size());
+
+		if (hmac != mac) {
+			ocall_debug(hmac.to_string().c_str());
+			ocall_debug(mac.to_string().c_str());
+			return -3;
+		}
+	}
+
+	plain.resize(cipher_text.size(), 0);
+	h128 temp_iv(cipherIV);
+
+	sgx_aes_ctr_decrypt(
+			(const sgx_aes_ctr_128bit_key_t*)eKey.data(),
+			&cipher_text[0],
+			cipher_text.size(),
+			temp_iv.data(),
+			1,
+			&plain[0]
+	);
+
+	io.resize(plain.size());
+	io.swap(plain);
+
+	return 0;
 }
 
 
