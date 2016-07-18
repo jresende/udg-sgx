@@ -13,6 +13,7 @@
 #include <string>
 #include <algorithm>
 #include "hex_encode.hpp"
+#include <sgx_trts.h>
 
 namespace udg {
 
@@ -37,6 +38,16 @@ namespace udg {
 
 		FixedSizedByteArray(const FixedSizedByteArray& that) {
 			std::copy(that.begin(), that.end(), this->begin());
+		}
+
+		FixedSizedByteArray(const std::string& str) {
+			std::vector<uint8_t> bytes = udg::hex_decode(str);
+
+			auto begin = bytes.begin();
+			auto end = bytes.end();
+			for (size_t cnt = 0; begin != end && cnt < N; ++begin, cnt++) {
+				this->_data[cnt] = *begin;
+			}
 		}
 
 		template <typename _InputIterator>
@@ -107,6 +118,31 @@ namespace udg {
 			return out;
 		}
 
+		FixedSizedByteArray operator^=(const FixedSizedByteArray& that) const {
+
+			for (size_t i = 0; i < FixedSizedByteArray::size; i++) {
+				this->_data[i] ^= that[i];
+			}
+
+			return *this;
+		}
+
+		FixedSizedByteArray operator|=(const FixedSizedByteArray& that) const {
+			for (size_t i = 0; i < FixedSizedByteArray::size; i++) {
+				this->_data[i] |= that[i];
+			}
+
+			return *this;
+		}
+
+		FixedSizedByteArray operator&=(const FixedSizedByteArray& that) const {
+			for (size_t i = 0; i < FixedSizedByteArray::size; i++) {
+				this->_data[i] &= that[i];
+			}
+
+			return *this;
+		}
+
 		// Truncates if M larger than N
 		template <unsigned long int M>
 		static FixedSizedByteArray right_zpad(const FixedSizedByteArray<M>& that) {
@@ -154,11 +190,46 @@ namespace udg {
 			memset(this->_data, 0, N);
 		}
 
+		bool operator>(const FixedSizedByteArray& that) const {
+			for (uint8_t i = 0; i < N; i++) {
+				if (this->_data[i] > that[i]) {
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		bool operator<(const FixedSizedByteArray& that) const {
+			for (uint8_t i = 0; i < N; i++) {
+				if (this->_data[i] < that[i]) {
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		bool operator>=(const FixedSizedByteArray& that) const {
+			return !(*this < that);
+		}
+
+		bool operator<=(const FixedSizedByteArray& that) const {
+			return !(*this > that);
+		}
+
+		static FixedSizedByteArray random() {
+			FixedSizedByteArray out;
+			sgx_read_rand(out.data(), N);
+			return out;
+		}
+
 	};
 
 	using h128 = FixedSizedByteArray<16>;
 	using h256 = FixedSizedByteArray<32>;
 	using h512 = FixedSizedByteArray<64>;
+	using h520 = FixedSizedByteArray<65>;
 	using h1024 = FixedSizedByteArray<128>;
 
 }

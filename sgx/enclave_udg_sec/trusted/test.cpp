@@ -25,10 +25,10 @@ using namespace udg::crypto;
 int ecall_udg_test_ECIES() {
 #ifndef NDEBUG
 	udg::crypto::load_or_gen_keys();
-	const RLPxKeyPair& kp1 = udg::crypto::get_keys();
+	const KeyPair& kp1 = udg::crypto::get_keys();
 
-	std::string kp1_pub = hex_encode(kp1.pub_key.data(), RLPxPublicKey::size);
-	std::string kp1_priv = hex_encode(kp1.priv_key.data(), RLPxPrivateKey::size);
+	std::string kp1_pub = hex_encode(kp1.pub_key.data(), PublicKey::size);
+	std::string kp1_priv = hex_encode(kp1.priv_key.data(), PrivateKey::size);
 
 	printf("PubKey1:  %s\n", kp1_pub.c_str());
 	printf("PrivKey1: %s\n", kp1_priv.c_str());
@@ -53,7 +53,11 @@ int ecall_udg_test_ECIES() {
 	printf("Encrypted string (hex): %s\n", encrypted_data.c_str());
 	printf("Decrypted string (hex): %s\n", decrypted_data.c_str());
 
-	secp256k1_context* c = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
+	if (encrypted_data.compare(decrypted_data) != 0) {
+		return -1;
+	}
+
+	secp256k1_context* c = secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
 	io::cdebug << "Verify key" << secp256k1_ec_seckey_verify(c, kp1.priv_key.data());
 
 #endif
@@ -72,7 +76,7 @@ int ecall_udg_test_RLPxHandshake() {
 
 	std::string local_node = "e76d49abcf53d9530759fcff3083176d4507fcd605d7128508389f43c35897a956f155f945c83b268a5dd7157edf5ea9496538e319144f7ba9d0cb3c81477f3c";
 	auto local_node_bytes = hex_decode(local_node);
-	RLPxPublicKey node_id(local_node_bytes.begin(), local_node_bytes.end());
+	PublicKey node_id(local_node_bytes.begin(), local_node_bytes.end());
 
 	io::cdebug << "Node ID loaded.";
 

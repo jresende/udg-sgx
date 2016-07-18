@@ -11,6 +11,7 @@
 #include "scalar.h"
 #include "ecmult.h"
 #include <string.h>
+#include "../../../udg_sec.h"
 
 /* optimal for 128-bit and 256-bit exponents. */
 #define WINDOW_A 5
@@ -93,10 +94,18 @@ static void secp256k1_ecmult_odd_multiples_table_globalz_windowa(secp256k1_ge *p
     secp256k1_ge_globalz_set_table_gej(ECMULT_TABLE_SIZE(WINDOW_A), pre, globalz, prej, zr);
 }
 
+//char gej_space[2031616];
+//char ge_space[1376256];
+//char fe_space[655360];
+
 static void secp256k1_ecmult_odd_multiples_table_storage_var(int n, secp256k1_ge_storage *pre, const secp256k1_gej *a, const secp256k1_callback *cb) {
-    secp256k1_gej *prej = (secp256k1_gej*)checked_malloc(cb, sizeof(secp256k1_gej) * n);
+
+	secp256k1_gej *prej = (secp256k1_gej*)checked_malloc(cb, sizeof(secp256k1_gej) * n);
     secp256k1_ge *prea = (secp256k1_ge*)checked_malloc(cb, sizeof(secp256k1_ge) * n);
     secp256k1_fe *zr = (secp256k1_fe*)checked_malloc(cb, sizeof(secp256k1_fe) * n);
+//	secp256k1_gej *prej = (secp256k1_gej*)gej_space;
+//	secp256k1_ge *prea = (secp256k1_ge*)ge_space;
+//	secp256k1_fe *zr = (secp256k1_fe*)fe_space;
     int i;
 
     /* Compute the odd multiples in Jacobian form. */
@@ -152,10 +161,12 @@ static void secp256k1_ecmult_context_build(secp256k1_ecmult_context *ctx, const 
         return;
     }
 
+//    printf("\nSize %lu\n", sizeof((*ctx->pre_g)[0]) * ECMULT_TABLE_SIZE(WINDOW_G));
     /* get the generator */
     secp256k1_gej_set_ge(&gj, &secp256k1_ge_const_g);
 
     ctx->pre_g = (secp256k1_ge_storage (*)[])checked_malloc(cb, sizeof((*ctx->pre_g)[0]) * ECMULT_TABLE_SIZE(WINDOW_G));
+//    ctx->pre_g = (secp256k1_ge_storage (*)[]) space;
 
     /* precompute the tables with odd multiples */
     secp256k1_ecmult_odd_multiples_table_storage_var(ECMULT_TABLE_SIZE(WINDOW_G), *ctx->pre_g, &gj, cb);

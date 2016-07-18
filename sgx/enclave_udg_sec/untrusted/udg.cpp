@@ -235,12 +235,12 @@ int SGX_CDECL main(int argc, char *argv[])
         abort();
 
     ret = ecall_udg_test_ECIES(global_eid, &ecall_return);
-    if (ret != SGX_SUCCESS)
+    if (ret != SGX_SUCCESS || ecall_return != 0)
             abort();
 
-    ret = ecall_udg_test_RLPxHandshake(global_eid, &ecall_return);
-        if (ret != SGX_SUCCESS)
-                abort();
+//    ret = ecall_udg_test_RLPxHandshake(global_eid, &ecall_return);
+//        if (ret != SGX_SUCCESS || ecall_return != 0)
+//                abort();
 
     if (ecall_return == 0) {
       printf("Application ran with success\n");
