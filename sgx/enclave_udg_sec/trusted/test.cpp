@@ -14,7 +14,6 @@
 #include "libudg/crypto/all_hash.hpp"
 #include "libudg/hex_encode.hpp"
 #include "libudg/io.hpp"
-#include "libudg/crypto/ecc/uECC.h"
 #include "libudg/crypto/secp256k1/include/secp256k1_recovery.h"
 #include "libudg/crypto/secp256k1/include/secp256k1.h"
 #include "libudg/ethereum/rlp.hpp"
