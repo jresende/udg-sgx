@@ -224,6 +224,11 @@ namespace udg {
 			return out;
 		}
 
+		FixedSizedByteArray& reverse() {
+			std::reverse(this->begin(), this->end());
+			return *this;
+		}
+
 	};
 
 	using h128 = FixedSizedByteArray<16>;

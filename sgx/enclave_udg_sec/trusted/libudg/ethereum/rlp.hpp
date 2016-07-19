@@ -25,6 +25,8 @@ namespace udg {
         const size_t BIGLEN = 55;
 
         typedef std::vector<uint8_t> rlpvec;
+        typedef std::vector<rlpvec> rlplist;
+
 
         rlpvec to_rlp(char data);
         rlpvec to_rlp(std::string data);
@@ -70,6 +72,10 @@ namespace udg {
             return out;
         }
 
+        rlpvec to_rlp(const std::vector<uint8_t>& buf);
+
+        rlpvec to_rlp_list(const rlplist& data);
+
         class RLPData {
             ContentType type;
 
@@ -96,13 +102,11 @@ namespace udg {
             int retrieve_bytes(rlpvec& out) const;
             int retrieve_arr(std::vector<RLPData>& out) const;
 
-            template <typename OutputIterator>
-            int retrieve_arr(OutputIterator oit);
-
             template <typename RandomAccessIterator>
             long parse_bytes(RandomAccessIterator it, RandomAccessIterator end);
 
             std::string to_string() const;
+            std::string to_hex_string() const;
 
             ~RLPData();
         };
@@ -197,24 +201,6 @@ namespace udg {
             }
 
             return std::distance(start_it, it);
-        }
-
-        template <typename OutputIterator>
-        int RLPData::retrieve_arr(OutputIterator oit) {
-            switch (this->type) {
-
-                case BYTE:break;
-                case SMALL_STR:break;
-                case LONG_STR:break;
-                case SMALL_ARR:
-                case LONG_ARR:
-                {
-                    std::copy(this->arr()->begin(), this->arr()->end(), oit);
-                    return 0;
-                }
-            }
-
-            return -1;
         }
 
 

@@ -200,3 +200,10 @@ uint32_t udg::ip_addr_str_to_int(const char* addr, size_t len) {
 uint32_t udg::ip_addr_str_to_int(const std::string& str) {
 	return udg::ip_addr_str_to_int(str.c_str(), str.length());
 }
+
+uint32_t udg::get_ip() {
+	char ip_str[100] = {};
+	ocall_get_sys_ip(ip_str);
+
+	return ip_addr_str_to_int(ip_str, strnlen(ip_str, 100));
+}

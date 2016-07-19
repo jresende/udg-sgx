@@ -14,17 +14,16 @@
 #include <string.h>
 #include <memory>
 #include "../hex_encode.hpp"
-#include "hmac.hpp"
+#include "all_hash.hpp"
 #include <vector>
 #include <iterator>
 #include <algorithm>
 #include "../io.hpp"
-#include "keccak.hpp"
 #include "secp256k1/include/secp256k1_recovery.h"
 #include "ecc.hpp"
 
 #define ENCLAVE_KEY_FILE "rlpx_keys.dat"
-#define KEY_PAIR_SIZE 64U + 32U
+#define KEY_PAIR_SIZE PublicKey::size + PrivateKey::size
 
 using namespace udg;
 using namespace udg::crypto;
@@ -124,6 +123,7 @@ void udg::crypto::print_pub_key() {
 }
 
 const crypto::KeyPair& udg::crypto::get_keys() {
+	load_or_gen_keys();
 	return enclave_pair;
 }
 
@@ -133,12 +133,22 @@ udg::crypto::RLPxSession::RLPxSession(PublicKey node_id, uint32_t inet_addr, uin
 	this->ephemeral_keys = KeyPair::create_rand();
 	this->dest = node_id;
 
-	this->sendAuth();
-	this->recvAck();
+	int r = this->sendAuth();
+	if (r != 0) {
+		goto err;
+	}
+
+	r = this->recvAck();
+	if (r != 0) {
+		goto err;
+	}
+
+	err:
+	io::cout << "Something went horribly wrong!\n";
 
 }
 
-void udg::crypto::RLPxSession::sendAuth() {
+int udg::crypto::RLPxSession::sendAuth() {
 
 	create_nonce(nonce);
 
@@ -187,9 +197,11 @@ void udg::crypto::RLPxSession::sendAuth() {
 
 	int r = this->conn.send(&authInitiator[0], authInitiator.size(), 0x100);
 	io::cdebug << "Send returned: " << r;
+
+	return (r == authInitiator.size()) ? 0 : -1;
 }
 
-void udg::crypto::RLPxSession::recvAck() {
+int udg::crypto::RLPxSession::recvAck() {
 	std::vector<uint8_t> ack_cipher(210);
 
 	io::cdebug << "Waiting for ack data...";
@@ -198,8 +210,9 @@ void udg::crypto::RLPxSession::recvAck() {
 	int total_recv = 0;
 	int to_recv = 210;
 	while (to_recv > 0) {
-		if ((r = this->conn.recv(&ack_cipher[total_recv], to_recv, 0x100)) < 0) {
-			throw;
+		if ((r = this->conn.recv(&ack_cipher[total_recv], to_recv, 0x100)) < 1) {
+			io::cout << "Connection terminated by peer or timeout occurred.\n";
+			return -2;
 		}
 		to_recv -= r;
 		total_recv += r;
@@ -212,7 +225,7 @@ void udg::crypto::RLPxSession::recvAck() {
 
 	if ((r = decryptECIES(get_keys().priv_key, {}, 0, ack_cipher)) != 0) {
 		io::cdebug << r;
-		throw;
+		return -3;
 	}
 
 	io::cdebug << "Decrypted message";
@@ -277,6 +290,7 @@ void udg::crypto::RLPxSession::recvAck() {
 
 	io::cdebug << "Successfully completed handshake with " << this->dest.to_string() << "\n";
 
+	return 0;
 
 }
 
@@ -284,8 +298,7 @@ void udg::crypto::RLPxSession::recvAck() {
 std::vector<uint8_t> udg::crypto::eciesKDF(const crypto::Secret& sec, const uint8_t addl_data[],
         size_t addl_data_len, unsigned out_len) {
 
-	sgx_sha_state_handle_t sha_handle;
-	sgx_sha256_init(&sha_handle);
+	sha256 ctx;
 
 	uint32_t reps = ((out_len + 7) * 8) / (64 * 8);
 	io::cdebug << __FUNCTION__ << reps;
@@ -295,16 +308,16 @@ std::vector<uint8_t> udg::crypto::eciesKDF(const crypto::Secret& sec, const uint
 	std::vector<uint8_t> key;
 
 	for (unsigned i = 0; i <= reps; i++) {
-		sgx_sha256_update(ctr, 4, sha_handle);
-		sgx_sha256_update(sec.data(), Secret::size, sha_handle);
-		sgx_sha256_update(addl_data, addl_data_len, sha_handle);
+		ctx.update(ctr, 4);
+		ctx << sec;
+		ctx.update(addl_data, addl_data_len);
 
-		uint8_t digest[32];
-		sgx_sha256_get_hash(sha_handle, (sgx_sha256_hash_t *) digest);
-		sgx_sha256_close(sha_handle);
-		sgx_sha256_init(&sha_handle);
+		h256 digest;
+		ctx >> digest;
+		ctx.restart();
 
-		std::copy(digest, digest + 32, std::back_insert_iterator<std::vector<uint8_t> >(key));
+		std::copy(digest.begin(),
+				digest.end(), std::back_insert_iterator<std::vector<uint8_t> >(key));
 
 		if (++ctr[3] || ++ctr[2] || ++ctr[1] || ++ctr[0]) {
 			continue;
@@ -312,7 +325,6 @@ std::vector<uint8_t> udg::crypto::eciesKDF(const crypto::Secret& sec, const uint
 
 	}
 
-	sgx_sha256_close(sha_handle);
 	key.resize(out_len);
 
 	return key;
@@ -328,28 +340,24 @@ void udg::crypto::encryptECIES(const PublicKey& pub, const uint8_t mac_data[], s
 	io::cdebug << "Shared secret encrypt: " << z.to_string();
 
 	auto key = crypto::eciesKDF(z, {}, 0, 32);
-	uint8_t eKey[16] = {};
-	uint8_t mKeyMaterial[16] = {};
-	std::copy(key.begin(), key.begin() + 16, eKey);
-	std::copy(key.begin() + 16, key.begin() + 32, mKeyMaterial);
+	h128 eKey;
+	h128 mKeyMaterial;
+	std::copy(key.begin(), key.begin() + 16, eKey.begin());
+	std::copy(key.begin() + 16, key.begin() + 32, mKeyMaterial.begin());
 
-	sgx_sha_state_handle_t sha_handle;
-	sgx_sha256_init(&sha_handle);
+	h256 mKey;
 
-	sgx_sha256_update(mKeyMaterial, 16, sha_handle);
-
-	uint8_t mKey[32] = {};
-	sgx_sha256_get_hash(sha_handle, (sgx_sha256_hash_t*) mKey);
-	sgx_sha256_close(sha_handle);
+	sha256 ctx;
+	ctx << mKeyMaterial >> mKey;
 
 	h128 iv;
-	udg::crypto::create_nonce(iv);
+//	udg::crypto::create_nonce(iv);
 	std::vector<uint8_t> cipher_text;
 	cipher_text.resize(io.size(), 0);
 	h128 temp_iv(iv);
 
 	sgx_status_t ret = sgx_aes_ctr_encrypt(
-			(const sgx_aes_ctr_128bit_key_t*)eKey,
+			(const sgx_aes_ctr_128bit_key_t*)eKey.data(),
 			(const unsigned char*) &io[0],
 			(const uint32_t)io.size(),
 			temp_iv.data(),
@@ -371,9 +379,9 @@ void udg::crypto::encryptECIES(const PublicKey& pub, const uint8_t mac_data[], s
 	std::vector<uint8_t> civ(msg.begin() + 1 + sizeof(PublicKey), msg.begin() + 1 + sizeof(PublicKey) + h128::size + cipher_text.size());
 	civ.insert(civ.end(), mac_data, mac_data + mac_len);
 
-	io::cdebug << "Encrypt mKey data: " << hex_encode(mKey, 32);
+	io::cdebug << "Encrypt mKey data: " << mKey.to_string();
 
-	h256 hmc = udg::crypto::hmac_sha256(mKey, 32, &civ[0], civ.size());
+	h256 hmc = udg::crypto::hmac_sha256(mKey.data(), h256::size, &civ[0], civ.size());
 
 	io::cdebug << "Encrypt HMAC data: " << hex_encode(&civ[0], civ.size());
 	io::cdebug << "Encrypt HMAC: " << hmc.to_string();
@@ -410,11 +418,8 @@ int udg::crypto::decryptECIES(const PrivateKey& priv, const uint8_t mac_data[], 
 	h256 mKey;
 
 	{
-		sgx_sha_state_handle_t sha_handle;
-		sgx_sha256_init(&sha_handle);
-		sgx_sha256_update(mKeyMaterial.data(), h128::size, sha_handle);
-		sgx_sha256_get_hash(sha_handle, (sgx_sha256_hash_t*) mKey.data());
-		sgx_sha256_close(sha_handle);
+		sha256 ctx;
+		ctx << mKeyMaterial >> mKey;
 	}
 
 	io::cdebug << "Decrypt mKey: " << mKey.to_string();
@@ -462,5 +467,10 @@ int udg::crypto::decryptECIES(const PrivateKey& priv, const uint8_t mac_data[], 
 	return 0;
 }
 
+ssize_t udg::crypto::RLPxSession::send(const void* buf, size_t len) {
+	throw;
+}
 
-
+ssize_t udg::crypto::RLPxSession::recv(void* buf, size_t len) {
+	throw;
+}

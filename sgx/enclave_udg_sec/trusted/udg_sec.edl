@@ -2,6 +2,8 @@
 
 enclave {
     
+    from "sgx_tae_service.edl" import *;
+    
     /* 
      * ocall_udg_sec_sample - invokes OCALL to display string buffer inside the enclave.
      *  [in]: copy the string buffer to App outside.
@@ -35,8 +37,9 @@ enclave {
         
         void ocall_file_size([out] size_t* res, [in, string] const char* filename);
         void ocall_read_file([out] int* res, [in, string] const char* filename, [out, size=len] void* out, size_t len);
-        
         void ocall_write_file([out] int* res, [in, string] const char* filename, [in, size=len] const void* in, size_t len); // Beware confused deputies!
+        
+        void ocall_get_sys_ip([in, out, string] char* addr);
     };
 
 
@@ -44,5 +47,6 @@ enclave {
     	    public int ecall_udg_sec_main();
     	    public int ecall_udg_test_ECIES();
     	    public int ecall_udg_test_RLPxHandshake();
+    	    public int ecall_udg_test_rlp();
     };
 };

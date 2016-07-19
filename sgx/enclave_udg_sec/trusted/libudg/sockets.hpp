@@ -39,6 +39,8 @@ namespace udg {
     uint32_t ip_addr_str_to_int(const char* addr, size_t len);
     uint32_t ip_addr_str_to_int(const std::string& str);
 
+    uint32_t get_ip(); /// ... how do we do this securely?
+
 }
 
 #endif //UDG_SOCKETS_HPP

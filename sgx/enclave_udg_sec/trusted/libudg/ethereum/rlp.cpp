@@ -5,6 +5,7 @@
 #include "rlp.hpp"
 #include <algorithm>
 #include <iterator>
+#include "../hex_encode.hpp"
 
 using namespace udg::rlp;
 
@@ -30,6 +31,10 @@ uint8_t min_byte_rep(uint64_t size) {
 
     return sizeof(uint64_t);
 
+}
+
+uint8_t udg::rlp::bytes_needed(uint64_t o) {
+	return min_byte_rep(o);
 }
 
 rlpvec udg::rlp::to_rlp(char data_in) {
@@ -207,6 +212,45 @@ std::string RLPData::to_string() const {
     return out;
 }
 
+std::string udg::rlp::RLPData::to_hex_string() const {
+	std::string out = "";
+
+	switch (this->type) {
+
+		case BYTE:
+		case SMALL_STR:
+		case LONG_STR:
+		{
+			out.append(udg::hex_encode(&(*this->bytes())[0], this->bytes()->size()));
+		}
+			break;
+
+		case SMALL_ARR:
+		case LONG_ARR:
+		{
+
+			std::vector<RLPData>::const_iterator end = this->arr()->end();
+
+			out.append("[");
+			for (std::vector<RLPData>::const_iterator it = this->arr()->begin();
+				 it != end;
+				 ++it) {
+
+				out.append(it->to_string());
+
+				if (it + 1 != end) {
+					out.append(", ");
+				}
+
+			}
+			out.append("]");
+		}
+			break;
+	}
+
+	return out;
+}
+
 RLPData &RLPData::operator=(RLPData that) {
 
     swap(that);
@@ -238,6 +282,42 @@ RLPData::RLPData(const RLPData &that) {
         }
             break;
     }
+}
+
+rlpvec udg::rlp::to_rlp_list(const std::vector<rlpvec>& data) {
+	size_t total_size = 0;
+
+	rlpvec out;
+
+	for (auto& rlpdat : data) {
+		total_size += rlpdat.size();
+	}
+
+	if (total_size > 55) {
+		out.push_back((const unsigned char &) (0xf7 + min_byte_rep(total_size)));
+		uint64_t size = byte_swap<uint64_t>(total_size);
+		uint8_t* size_ptr = reinterpret_cast<uint8_t*>(&size);
+
+		uint8_t bytes_needed  = min_byte_rep(total_size);
+		for (uint8_t i = sizeof(uint64_t) - (uint8_t) (bytes_needed); i < sizeof(uint64_t); i++) {
+			out.push_back(size_ptr[i]);
+		}
+
+		for (auto& rlpdat : data) {
+			out.insert(out.end(), rlpdat.begin(), rlpdat.end());
+		}
+	} else {
+		out.push_back((char) 0xc0 + (char) total_size);
+		for (auto& rlpdat : data) {
+			out.insert(out.end(), rlpdat.begin(), rlpdat.end());
+		}
+	}
+
+	return out;
+}
+
+rlpvec udg::rlp::to_rlp(const std::vector<uint8_t>& buf) {
+	return to_rlp(buf.begin(), buf.end());
 }
 
 

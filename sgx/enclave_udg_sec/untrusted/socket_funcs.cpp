@@ -8,11 +8,22 @@
 #include "udg_sec_u.h"
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <netinet/in.h>
+#include <curl/curl.h>
 #include <stdio.h>
+#include <string.h>
+#include <string>
+#include <stdint.h>
 
 static int get_tcp_socket() {
-    return socket(AF_INET, SOCK_STREAM, 0);
+    int r = socket(AF_INET, SOCK_STREAM, 0);
+    timeval timeout;
+    timeout.tv_sec = 10; // same as go-ethereum's timeout
+    timeout.tv_usec = 0;
+    setsockopt(r, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    setsockopt(r, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+    return r;
 }
 
 static int get_udp_socket() {
@@ -85,6 +96,28 @@ void ocall_recv(ssize_t* res, int sockfd, void* buf, size_t len, int flags) {
 
 void ocall_shutdown(int* res, int sockfd, int how) {
 	*res = sgx_shutdown(sockfd, how);
+}
+
+static std::string rbuf;
+
+static size_t write_callback(void* contents, size_t size, size_t nmemb, void* userp) {
+	rbuf.append((char*)contents, size * nmemb);
+	return 1;
+}
+
+void ocall_get_sys_ip(char* addr) {
+	CURL* curl = curl_easy_init();
+	CURLcode res;
+
+	const char* url = "https://api.ipify.org";
+
+	curl_easy_setopt(curl, CURLOPT_URL, url);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+	if ((res = curl_easy_perform(curl)) != CURLE_OK) {
+		strcpy(addr, "");
+	}
+
+	strcpy(addr, rbuf.c_str()); // OCALL interface will catch any bad strings.
 }
 
 

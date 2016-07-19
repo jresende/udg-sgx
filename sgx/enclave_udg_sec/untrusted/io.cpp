@@ -17,6 +17,8 @@ void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_read_file, (int* res, const char* filen
  void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_write_file, (int* res, const char* filename, const void* in, size_t len));
  */
 
+unsigned cnt = 0;
+
 void ocall_file_size(size_t* res, const char* filename) {
 	FILE* f = fopen(filename, "r");
 
@@ -63,6 +65,12 @@ void ocall_write_file(int* res, const char* filename, const void* in, size_t len
 
 }
 
+inline void flush_stdout_occasionally() {
+	if ((cnt++ % 5) == 0) {
+		fflush(stdout);
+	}
+}
+
 void ocall_debug(const char* str) {
 	size_t l = strlen(str);
 	l += strlen("DEBUG: ");
@@ -73,8 +81,13 @@ void ocall_debug(const char* str) {
 	strcat(debug_str, str);
 	puts(debug_str);
 	free(debug_str);
+
+	flush_stdout_occasionally();
+
 }
 
 void ocall_print(const char* str) {
 	fputs(str, stdout);
+
+	flush_stdout_occasionally();
 }
