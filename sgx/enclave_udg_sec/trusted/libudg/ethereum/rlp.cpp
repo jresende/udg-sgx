@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <iterator>
 #include "../hex_encode.hpp"
+#include <stdexcept>
 
 using namespace udg::rlp;
 
@@ -221,7 +222,9 @@ std::string udg::rlp::RLPData::to_hex_string() const {
 		case SMALL_STR:
 		case LONG_STR:
 		{
+			out.append("\"");
 			out.append(udg::hex_encode(&(*this->bytes())[0], this->bytes()->size()));
+			out.append("\"");
 		}
 			break;
 
@@ -236,7 +239,7 @@ std::string udg::rlp::RLPData::to_hex_string() const {
 				 it != end;
 				 ++it) {
 
-				out.append(it->to_string());
+				out.append(it->to_hex_string());
 
 				if (it + 1 != end) {
 					out.append(", ");
@@ -317,10 +320,21 @@ rlpvec udg::rlp::to_rlp_list(const std::vector<rlpvec>& data) {
 }
 
 rlpvec udg::rlp::to_rlp(const std::vector<uint8_t>& buf) {
-	return to_rlp(buf.begin(), buf.end());
+	return to_rlp((const char*)&buf[0], buf.size());
 }
 
+rlpvec udg::rlp::RLPConvertable::to_rlp() const {
+	throw std::logic_error("Should not be calling this method.");
+}
 
+udg::rlp::RLPConvertable::~RLPConvertable() {}
+
+std::string udg::rlp::RLPConvertable::to_rlp_str() const {
+	RLPData d;
+	rlpvec r = this->to_rlp();
+	d.parse_bytes(r.begin(), r.end());
+	return d.to_hex_string();
+}
 
 
 

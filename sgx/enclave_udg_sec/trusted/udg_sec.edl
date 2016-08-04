@@ -40,6 +40,12 @@ enclave {
         void ocall_write_file([out] int* res, [in, string] const char* filename, [in, size=len] const void* in, size_t len); // Beware confused deputies!
         
         void ocall_get_sys_ip([in, out, string] char* addr);
+        
+        void ocall_db_open([out] int* ret, [in,string] const char* filename, int create_if_not_exists);
+        void ocall_db_close(int db_ref);
+        void ocall_db_put(int db_ref, [in, string] const char* key, [in, string] const char* value);
+        void ocall_db_get([out] long* ret_bytes, int db_ref, [in, string] const char* key, [out, size=buf_len] char* value, size_t buf_len);
+        void ocall_db_del(int db_ref, [in, string] const char* key);
     };
 
 
@@ -48,5 +54,6 @@ enclave {
     	    public int ecall_udg_test_ECIES();
     	    public int ecall_udg_test_RLPxHandshake();
     	    public int ecall_udg_test_rlp();
+    	    public int ecall_udg_test_uint256();
     };
 };

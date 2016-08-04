@@ -145,11 +145,7 @@ namespace udg {
                     be_size_ptr[index] = *it;
                 }
 
-                it--;
-
                 uint64_t le_size = udg::byte_swap<uint64_t>(be_size);
-
-                it += size_size;
 
                 std::copy(it, it + le_size,
                           std::back_insert_iterator<rlpvec>(*this->bytes()));
@@ -185,11 +181,7 @@ namespace udg {
                     be_size_ptr[index] = *it;
                 }
 
-                it--;
-
                 uint64_t le_size = udg::byte_swap<uint64_t>(be_size);
-
-                it += size_size;
                 RandomAccessIterator array_data_start = it;
 
                 while ((unsigned long) std::distance(array_data_start, it) < le_size) {
@@ -203,7 +195,11 @@ namespace udg {
             return std::distance(start_it, it);
         }
 
-
+        struct RLPConvertable {
+        	virtual rlpvec to_rlp() const;
+        	virtual std::string to_rlp_str() const;
+        	virtual ~RLPConvertable();
+        };
 
     }
 }

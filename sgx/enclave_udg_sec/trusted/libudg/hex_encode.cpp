@@ -39,6 +39,11 @@ std::string udg::hex_encode(const uint8_t* src, size_t len) {
 }
 
 std::vector<uint8_t> udg::hex_decode(const std::string& src) {
+
+	if (src.length() == 0) {
+		return std::vector<uint8_t>();
+	}
+
 	std::vector<uint8_t> out;
 
 	std::string cpy(src);
@@ -60,4 +65,8 @@ std::vector<uint8_t> udg::hex_decode(const std::string& src) {
 	}
 
 	return out;
+}
+
+std::string udg::hex_encode(const std::vector<uint8_t>& src) {
+	return udg::hex_encode(&src[0], src.size());
 }

@@ -9,8 +9,13 @@
 #include "../udg_sec.h"
 #include "../udg_sec_t.h"
 #include "intconv.hpp"
+#include <sgx_tseal.h>
+#include <stdlib.h>
+#include <string.h>
 
 using namespace udg;
+
+#define MAX_PUT_SIZE 1024 * 1024 * 1024
 
 void p(const char* s) {
 	ocall_print(s);
@@ -115,4 +120,69 @@ io::simple_io& udg::io::simple_io::operator <<(unsigned char num) {
 
 	*this << (char) num;
 
+}
+
+udg::io::DBSession::DBSession(const char* filename, bool create_if_not_exists) {
+	int desc;
+	ocall_db_open(&desc, filename, create_if_not_exists ? 1 : 0);
+
+	this->db_ref = udg::shared_ptr<int>(new int);
+	*db_ref = desc;
+}
+
+ssize_t udg::io::DBSession::get(const char* key, char* out, size_t len, bool decrypt) {
+	ssize_t out_len;
+	ocall_db_get(&out_len, *this->db_ref, key, out, len);
+	if (out_len >= 0 && decrypt) {
+		char* tmp = (char*) calloc(len, sizeof(char));
+		uint32_t mac_len = 0;
+		memcpy(tmp, out, out_len);
+
+		sgx_sealed_data_t* sealed_data = reinterpret_cast<sgx_sealed_data_t*>(tmp);
+		sgx_status_t stat = sgx_unseal_data(sealed_data, nullptr, &mac_len, (uint8_t*) out, (uint32_t*) &out_len);
+
+		free(tmp);
+
+		if (stat != SGX_SUCCESS) {
+			return -1;
+		} else {
+			return out_len;
+		}
+	} else if (out_len >= 0 && !decrypt) {
+		return out_len;
+	} else {
+		return out_len;
+	}
+}
+
+udg::io::DBSession::~DBSession() {
+	ocall_db_close(*this->db_ref);
+}
+
+void udg::io::DBSession::put(const char* key, const char* value, bool encrypt) {
+	if (!encrypt) {
+		ocall_db_put(*this->db_ref, key, value);
+	} else {
+		uint32_t crypt_size = strnlen(value, MAX_PUT_SIZE);
+		uint32_t sealed_size = sgx_calc_sealed_data_size(0, crypt_size);
+
+		uint8_t* encrypted_dat = (uint8_t*) calloc(sealed_size + 1, sizeof(uint8_t));
+		sgx_seal_data(
+				0,
+				nullptr,
+				crypt_size,
+				(const uint8_t*)value,
+				sealed_size,
+				(sgx_sealed_data_t*) encrypted_dat
+				);
+
+		encrypted_dat[sealed_size] = 0;
+
+		this->put(key, value, false);
+
+	}
+}
+
+void udg::io::DBSession::del(const char* key) {
+	ocall_db_del(*this->db_ref, key);
 }

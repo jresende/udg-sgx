@@ -15,6 +15,8 @@ namespace udg {
 
 	std::string hex_encode(const uint8_t* src, size_t len);
 
+	std::string hex_encode(const std::vector<uint8_t>& src);
+
 	std::vector<uint8_t> hex_decode(const std::string& src);
 }
 

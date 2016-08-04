@@ -18,7 +18,7 @@ secp256k1_context* udg::crypto::secp_ctx(secp256k1_context_create(SECP256K1_CONT
 static const PublicKey c_zeroKey("3f17f1962b36e491b30a40b2405849e597ba5fb5");
 
 bool udg::crypto::SignatureStruct::isValid() const {
-	return !(v > 1 ||
+	return !(v > 3 ||
 			r >= h256("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")||
 			s >= h256("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141") ||
 			s < h256("1") ||
@@ -122,3 +122,7 @@ Secret udg::crypto::shared_secret(const PublicKey& pubk, const PrivateKey& privk
 	return out;
 }
 
+bool udg::crypto::verify(const PublicKey& pubk, const Signature& _sig, const h256& _message) {
+	return secp256k1_ecdsa_verify(secp_ctx,(const secp256k1_ecdsa_signature*) _sig.data(), _message.data(),
+			(const secp256k1_pubkey*)pubk.data()) == 1;
+}

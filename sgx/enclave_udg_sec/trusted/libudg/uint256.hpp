@@ -10,10 +10,12 @@
 #include <cstddef>
 #include <algorithm>
 #include "intconv.hpp"
+#include "byte_array.hpp"
+#include "ethereum/rlp.hpp"
 
 namespace udg {
 
-    class uint256_t {
+    class uint256_t : public rlp::RLPConvertable {
         uint64_t data[4];
 
     public:
@@ -25,6 +27,7 @@ namespace udg {
         uint256_t(ForwardIterator begin, ForwardIterator end);
         uint256_t(const uint64_t& inp);
         uint256_t();
+        uint256_t(const std::string& str);
 
         uint256_t& decrement();
         uint256_t& increment();
@@ -50,11 +53,16 @@ namespace udg {
         uint256_t operator -(const uint256_t& that) const;
         uint256_t operator -() const;
         uint256_t operator ~() const;
-        uint256_t& operator=(const uint256_t& that);
 
-        std::string be_serialize() const;
+        h256 be_serialize() const;
+        h256 to_hash() const;
 
         bool bit_set(uint8_t index) const;
+
+        uint256_t(const uint256_t&);
+        uint256_t& operator=(uint256_t);
+
+        void swap(uint256_t&);
 
     };
 

@@ -58,6 +58,8 @@ namespace udg {
 		};
 
 		Secret shared_secret(const PublicKey& pubk, const PrivateKey& privk);
+
+		bool verify(const PublicKey& pubk, Signature const& _sig, h256 const& _message);
 	}
 }
 

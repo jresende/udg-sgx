@@ -6,6 +6,8 @@
 #define UDG_SHA3PP_HPP
 
 #include "sha3.h"
+#include "../ethereum/rlp.hpp"
+#include "../byte_array.hpp"
 #include <string>
 #include <stdint.h>
 
@@ -55,6 +57,8 @@ namespace udg {
         std::string digest_str(const keccak256&);
         std::string digest_str(const keccak384&);
         std::string digest_str(const keccak512&);
+
+        h256 rlp_keccak256(const rlp::RLPConvertable&);
     }
 }
 

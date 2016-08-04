@@ -10,6 +10,8 @@
 
 #include <stdint.h>
 #include <string>
+#include <stdio.h>
+#include "mem.hpp"
 
 namespace udg {
 
@@ -43,6 +45,17 @@ namespace udg {
 
 		extern simple_io cout;
 		extern simple_io cdebug;
+
+		class DBSession {
+			udg::shared_ptr<int> db_ref;
+		public:
+			DBSession(const char* filename, bool create_if_not_exists = true);
+			void put(const char* key, const char* value, bool encrypt = true);
+			ssize_t get(const char* key, char* out, size_t len, bool decrypt = true);
+			void del(const char* key);
+
+			~DBSession();
+		};
 	}
 }
 

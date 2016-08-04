@@ -13,23 +13,27 @@
 #include <string>
 #include <algorithm>
 #include "hex_encode.hpp"
+#include "ethereum/rlp.hpp"
 #include <sgx_trts.h>
 
 namespace udg {
 
 	template <unsigned long int N>
-	class FixedSizedByteArray {
+	class FixedSizedByteArray : public rlp::RLPConvertable {
 
 		uint8_t _data[N];
 
 	public:
 
 		FixedSizedByteArray() { memset(this->_data, 0, N); }
-		FixedSizedByteArray(const uint8_t data[], size_t len) {
-			size_t to_copy = len > N ? N : len;
-
+		FixedSizedByteArray(const uint8_t data[], size_t len, bool lzpad = false) {
 			memset(this->_data, 0, N);
-			memcpy(this->_data, data, to_copy);
+			size_t to_copy = len > N ? N : len;
+			if (!lzpad || to_copy >= N) {
+				memcpy(this->_data, data, to_copy);
+			} else {
+				memcpy(this->_data + N - to_copy, data, to_copy);
+			}
 		}
 
 		FixedSizedByteArray(uint8_t rep) {
@@ -229,9 +233,25 @@ namespace udg {
 			return *this;
 		}
 
+		rlp::rlpvec to_rlp() const {
+			uint32_t i;
+			for (i = 0; i < N; i++) {
+				if (_data[i] != 0) {
+					break;
+				}
+			}
+
+			return rlp::to_rlp((const char*)this->_data + i, (size_t) N - i);
+		}
+
+		rlp::rlpvec to_rlp_with_zeroes() const {
+			return rlp::to_rlp((const char*)this->data(), FixedSizedByteArray::size);
+		}
+
 	};
 
 	using h128 = FixedSizedByteArray<16>;
+	using h160 = FixedSizedByteArray<20>;
 	using h256 = FixedSizedByteArray<32>;
 	using h512 = FixedSizedByteArray<64>;
 	using h520 = FixedSizedByteArray<65>;

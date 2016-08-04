@@ -87,3 +87,14 @@ std::string udg::crypto::digest_str(const keccak512 & hash) {
     return udg::hex_encode(hash_bytes, 64);
 }
 
+udg::h256 udg::crypto::rlp_keccak256(const udg::rlp::RLPConvertable& conv) {
+	udg::rlp::rlpvec rlp = conv.to_rlp();
+	udg::crypto::keccak256 ctxt;
+	ctxt.update(&rlp[0], rlp.size());
+	ctxt.finalize();
+	udg::h256 out;
+	ctxt.get_digest(out.data());
+
+	return out;
+}
+
