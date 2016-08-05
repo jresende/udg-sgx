@@ -330,18 +330,57 @@ std::vector<uint8_t> udg::crypto::Neighbor::encapsulate_packet() const {
 
 Neighbours udg::crypto::Neighbours::from_rlp(const rlp::rlpvec& rlp) {
 	RLPData data;
+    Neighbours out;
 	data.parse_bytes(rlp.begin(), rlp.end());
 
 	std::vector<RLPData> all_data;
 	data.retrieve_arr(all_data);
 
 	std::vector<RLPData> neighbor_l;
-//	all_data[0].retrieve_arr()
+    all_data[0].retrieve_arr(neighbor_l);
 
+    for (size_t i = 0; i + 4 <= neighbor_l.size(); i += 4) {
+        std::vector<RLPData> neighbor_dat;
+        neighbor_dat.insert(neighbor_dat.end(), neighbor_l.begin() + i, neighbor_l.begin() + i + 4);
+
+        Neighbor n = Neighbor::from_rlp(neighbor_dat);
+        out.nodes.push_back(n);
+    }
+
+    rlpvec time_stamp;
+	all_data[1].retrieve_bytes(time_stamp);
+
+	uint32_t ts_swap = *reinterpret_cast<uint32_t*>(&time_stamp[0]);
+	out.timestamp = byte_swap<uint32_t>(ts_swap);
+
+    return out;
 
 }
 
 std::vector<uint8_t> udg::crypto::Neighbours::encapsulate_packet() const {
+    std::vector<uint8_t> out;
+
+    std::vector<rlpvec> neighbor_l;
+    
+    for (auto& n : this->nodes) {
+        neighbor_l.push_back(n.encapsulate_packet());
+    }
+
+    rlpvec n_rlp_lst = to_rlp_list(neighbor_l);
+
+	uint32_t be_time = byte_swap<uint32_t>(this->timestamp);
+	uint8_t* be_time_ptr = reinterpret_cast<uint8_t*>(&be_time);
+	rlpvec time = to_rlp(be_time_ptr, be_time_ptr + 4);
+
+    neighbor_l.clear();
+    neighbor_l.push_back(n_rlp_lst);
+    neighbor_l.push_back(time);
+
+    rlpvec dat = to_rlp_list(neighbor_l);
+    dat.insert(dat.begin(), static_cast<uint8_t>(PacketType::NEIGHBORS));
+    out = common_encaps(dat);
+
+    return out;
 }
 
 Endpoint udg::crypto::get_me(uint16_t port) {
@@ -355,3 +394,15 @@ Endpoint udg::crypto::get_me(uint16_t port) {
 
 	return out;
 }
+
+udg::crypto::RLPxDiscoverySession::RLPxDiscoverySession(uint32_t addr, uint16_t port, uint64_t timeout_len)
+    : conn(addr, port, false) {
+
+    this->timeout = timeout_len;
+}
+
+void udg::crypto::RLPxDiscoverySession::discover() {
+    
+}
+
+

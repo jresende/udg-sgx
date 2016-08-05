@@ -15,7 +15,7 @@
 #include "../ethereum/rlp.hpp"
 
 // Ethereum uses ECIES w/ AES128-CTR-SHA256
-// SHA256 is the sgx sha256
+// SHA256 is the sgx sha256 (which is the SHA2 SHA256)
 //
 
 namespace udg {
@@ -93,7 +93,17 @@ namespace udg {
     	};
 
     	class RLPxDiscoverySession {
+            uint64_t born;
+            uint64_t timeout;
 
+            SocketConnection conn; // TODO: Make this actually listen on a UDP connection so that this works for actual discovery
+            std::vector<Neighbor> discovered_neighbors;
+
+        public:
+            RLPxDiscoverySession(uint32_t addr, uint16_t port = 30303, uint64_t timeout_len = 5);
+
+            void discover();
+            const std::vector<Neighbor>& neighbors() const;
     	};
 
     	Endpoint get_me(uint16_t port);
