@@ -4,7 +4,7 @@ ALL_STATIC_MK=$(shell find . -name '*sgx_t_static.mk')
 
 
 
-.PHONY: all clean run
+.PHONY: all clean run debug
 
 
 all clean:
@@ -15,3 +15,5 @@ all clean:
 run:
 	$(foreach U_MK, $(ALL_UNTRUSTED_MK), $(MAKE) -C $(shell dirname $(U_MK))   -f $(shell basename $(U_MK)) $@;)
 
+debug:
+	$(MAKE) all SGX_DEBUG=1

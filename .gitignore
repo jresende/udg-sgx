@@ -1,6 +1,7 @@
 # Created by Dolphin
 .directory
 
+*.pyc
 rlpx_keys.dat
 *.pem
 # Created by .ignore support plugin (hsz.mobi)
