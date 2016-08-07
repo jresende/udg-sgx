@@ -41,6 +41,8 @@ namespace udg {
 			simple_io& operator<<(unsigned int num);
 			simple_io& operator<<(unsigned short num);
 			simple_io& operator<<(unsigned char num);
+
+			simple_io& operator<<(bool b);
 		};
 
 		extern simple_io cout;

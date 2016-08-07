@@ -37,7 +37,7 @@ namespace udg {
         uint256_t neg() const;
 
 
-        operator uint64_t();
+        operator uint64_t() const;
 
         bool operator ==(const uint256_t& that) const;
         bool operator !=(const uint256_t& that) const;

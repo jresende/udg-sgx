@@ -226,15 +226,25 @@ Action parse_args(int argc, char* argv[]) {
 		return Action::HELP;
 	}
 
-	if (first_arg.compare("parse")) {
+	if (first_arg.compare("parse") == 0) {
+		if (argc < 3) {
+			std::cerr << "parse switch requires a block (RLP-encoded, hexadecimal text) to be passed in."
+					<< std::endl;
+			return Action::ERROR;
+		}
 		return Action::PARSE;
 	}
 
-	if (first_arg.compare("verify")) {
+	if (first_arg.compare("verify") == 0) {
+		if (argc < 3) {
+			std::cerr << "verify switch requires a block (RLP-encoded, hexadecimal text) to be passed in."
+					<< std::endl;
+			return Action::ERROR;
+		}
 		return Action::VERIFY;
 	}
 
-	if (first_arg.compare("test")) {
+	if (first_arg.compare("test") == 0) {
 		return Action::TEST;
 	}
 
@@ -256,11 +266,13 @@ void print_error() {
 	std::cerr << "Unrecognized or invalid parameters." << std::endl;
 }
 
+void print_failure() {
+	std::cerr << "Something went wrong." << std::endl;
+}
+
 /* Application entry */
 int SGX_CDECL main(int argc, char *argv[])
 {
-    (void)(argc);
-    (void)(argv);
 
     /* Changing dir to where the executable is.*/
     char absolutePath [MAX_PATH];
@@ -280,31 +292,68 @@ int SGX_CDECL main(int argc, char *argv[])
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     int ecall_return = 0;
 
-//    ret = ecall_udg_sec_main(global_eid, &ecall_return);
-//    if (ret != SGX_SUCCESS)
-//        abort();
+    auto act = parse_args(argc, argv);
 
-//    ret = ecall_udg_test_rlp(global_eid, &ecall_return);
-//	if (ret != SGX_SUCCESS || ecall_return != 0)
-//		abort();
+    switch (act) {
+		case Action::TEST: {
 
-//    ret = ecall_udg_test_ECIES(global_eid, &ecall_return);
-//    if (ret != SGX_SUCCESS || ecall_return != 0)
-//		abort();
-//
-//    ret = ecall_udg_test_RLPxHandshake(global_eid, &ecall_return);
-//	if (ret != SGX_SUCCESS || ecall_return != 0)
-//		abort();
+				ret = ecall_udg_test_rlp(global_eid, &ecall_return);
+				if (ret != SGX_SUCCESS || ecall_return != 0) {
+					print_failure();
+					return ecall_return;
+				}
 
-    if (ecall_return == 0) {
-      printf("Application ran with success\n");
+				ret = ecall_udg_test_ECIES(global_eid, &ecall_return);
+				if (ret != SGX_SUCCESS || ecall_return != 0) {
+					print_failure();
+					return ecall_return;
+				}
+			}
+			break;
+
+		case Action::ERROR:
+			print_error();
+			/* no break */
+		case Action::HELP:
+			print_help();
+			break;
+
+		case Action::VERIFY:
+			ret = ecall_udg_verify(global_eid, &ecall_return, argv[2]);
+			if (ret != SGX_SUCCESS || ecall_return != 0) {
+				print_failure();
+				return ecall_return;
+			}
+			break;
+
+    	case Action::PARSE:
+    		ret = ecall_udg_parse(global_eid, &ecall_return, argv[2]);
+    		if (ret != SGX_SUCCESS || ecall_return != 0) {
+    			print_failure();
+				return ecall_return;
+			}
+			break;
+
+		default:
+			print_error();
+			print_help();
+			break;
+
     }
-    else
-    {
-        printf("Application failed %d \n", ecall_return);
-    }
+
+//    if (ecall_return == 0) {
+//      printf("Application ran with success\n");
+//    }
+//    else
+//    {
+//        printf("Application failed %d \n", ecall_return);
+//    }
     
     sgx_destroy_enclave(global_eid);
     
-    return ecall_return;
+    if (act == Action::ERROR) {
+    	return -1;
+    } else {
+    	return 0;
+    }
 }

@@ -9,6 +9,7 @@
 #include <math.h>
 #include <stdexcept>
 #include <algorithm>
+#include <map>
 
 using namespace udg;
 using namespace udg::eth;
@@ -181,25 +182,25 @@ EthashResult udg::eth::EthashCache::hashimoto(uint64_t full_size, h256 header_ha
 		throw std::invalid_argument("");
 	}
 
-	h512 s_mix[MIX_NODES + 1];
-	std::copy(header_hash.begin(), header_hash.end(), s_mix[0].begin());
+	h512 s_mix;
+	std::copy(header_hash.begin(), header_hash.end(), s_mix.begin());
 
 	if (be_nonce) {
 		nonce = nonce.reverse();
 	}
 
-	std::copy(nonce.begin(), nonce.end(), s_mix[0].begin() + (4 * WORD_BYTES * 2));
+	std::copy(nonce.begin(), nonce.end(), s_mix.begin() + (4 * WORD_BYTES * 2));
 
 	keccak512 ctxt;
-	ctxt.update(s_mix[0].data(), 40);
+	ctxt.update(s_mix.data(), 40);
 	ctxt.finalize();
-	s_mix[0] = ctxt.get_digest();
+	s_mix = ctxt.get_digest();
 
-	h512* mix = &s_mix[1];
+	h1024 mix;
 
 	for (uint32_t w = 0; w < MIX_WORDS; w++) {
-		auto c = s_mix[0].slice<WORD_BYTES>((w % NODE_WORDS) * WORD_BYTES);
-		std::copy(c.begin(), c.end(), mix->begin() + (w * WORD_BYTES));
+		auto c = s_mix.slice<WORD_BYTES>((w % NODE_WORDS) * WORD_BYTES);
+		std::copy(c.begin(), c.end(), mix.begin() + (w * WORD_BYTES));
 	}
 
 	uint32_t page_size = sizeof(uint32_t) * MIX_WORDS;
@@ -207,8 +208,8 @@ EthashResult udg::eth::EthashCache::hashimoto(uint64_t full_size, h256 header_ha
 
 	for (uint32_t i = 0; i < ACCESSES; i++) {
 		uint32_t index = ethash::fnv(
-				s_mix[0].reinterpret_at<uint32_t>(0) ^ i,
-				mix->reinterpret_at<uint32_t>((i % MIX_WORDS) * WORD_BYTES) % num_full_pages
+				s_mix.reinterpret_at<uint32_t>(0) ^ i,
+				mix.reinterpret_at<uint32_t>((i % MIX_WORDS) * WORD_BYTES) % num_full_pages
 		);
 
 		for (uint32_t n = 0; n < MIX_NODES; n++) {
@@ -217,37 +218,47 @@ EthashResult udg::eth::EthashCache::hashimoto(uint64_t full_size, h256 header_ha
 			for (uint32_t w = 0; w < NODE_WORDS; w++) {
 				auto fnv_hash = FixedSizedByteArray<4>::from<uint32_t>(
 						fnv(
-								mix[n].reinterpret_at<uint32_t>(w * WORD_BYTES),
+								mix.reinterpret_at<uint32_t>(w * WORD_BYTES + n * 64),
 								dag_node.reinterpret_at<uint32_t>(w * WORD_BYTES)
 						)
 				);
 
-				std::copy(fnv_hash.begin(), fnv_hash.end(), mix[n].begin() + (w * WORD_BYTES));
+				std::copy(fnv_hash.begin(), fnv_hash.end(), mix.begin() + (w * WORD_BYTES) + (n * 64));
 			}
 		}
 
 	}
 
 	for (uint32_t w = 0; w < MIX_WORDS; w += 4) {
-		uint32_t reduction = mix->reinterpret_at<uint32_t>((w + 0) * WORD_BYTES);
-		reduction = reduction * FNV_PRIME ^ mix->reinterpret_at<uint32_t>((w + 1) * WORD_BYTES);
-		reduction = reduction * FNV_PRIME ^ mix->reinterpret_at<uint32_t>((w + 2) * WORD_BYTES);
-		reduction = reduction * FNV_PRIME ^ mix->reinterpret_at<uint32_t>((w + 3) * WORD_BYTES);
+		uint32_t reduction = mix.reinterpret_at<uint32_t>((w + 0) * WORD_BYTES);
+		reduction = reduction * FNV_PRIME ^ mix.reinterpret_at<uint32_t>((w + 1) * WORD_BYTES);
+		reduction = reduction * FNV_PRIME ^ mix.reinterpret_at<uint32_t>((w + 2) * WORD_BYTES);
+		reduction = reduction * FNV_PRIME ^ mix.reinterpret_at<uint32_t>((w + 3) * WORD_BYTES);
 		auto red_bytes = FixedSizedByteArray<4>::from<uint32_t>(reduction);
-		std::copy(red_bytes.begin(), red_bytes.end(), mix->begin() + ((w / 4) * WORD_BYTES));
+		std::copy(red_bytes.begin(), red_bytes.end(), mix.begin() + ((w / 4) * WORD_BYTES));
 	}
 
 	EthashResult ret;
-	ret.mix_digest = h256(mix->begin(), mix->begin() + 32);
+	ret.mix_digest = h256(mix.begin(), mix.begin() + 32);
 
 	auto ctxt256 = keccak256();
-	ctxt256.update(s_mix[0]);
-	ctxt256.update(mix->data(), 32);
-	ctxt.finalize();
+	ctxt256.update(s_mix);
+	ctxt256.update(mix.data(), 32);
+	ctxt256.finalize();
 	ret.result = ctxt256.get_digest();
 
+	return ret;
 }
 
+std::pair<uint64_t, EthashCache> ethash_cache_cache(0xFFFFFFFFFFFFFFFFULL, EthashCache());
 
-
-
+EthashCache udg::eth::ethash::get_cache(uint64_t block_number) {
+	if (ethash_cache_cache.first == (block_number / EPOCH_LENGTH)) {
+		return ethash_cache_cache.second;
+	} else {
+		EthashCache ret(ethash::get_cache_size(block_number), ethash::get_seedhash(block_number));
+		ethash_cache_cache.first = block_number / EPOCH_LENGTH;
+		ethash_cache_cache.second = ret;
+		return ret;
+	}
+}

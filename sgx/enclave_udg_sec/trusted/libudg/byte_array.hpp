@@ -20,7 +20,7 @@
 namespace udg {
 
 	template <unsigned long int N>
-	class FixedSizedByteArray : public rlp::RLPConvertable {
+	class FixedSizedByteArray {
 
 		uint8_t _data[N];
 

@@ -7,8 +7,13 @@
 
 #include "blockchain.hpp"
 #include "../crypto/all_hash.hpp"
+#include "../algorithms.hpp"
+#include "ethash.hpp"
+#include "../io.hpp"
 #include <algorithm>
 #include <stdio.h>
+#include <stdexcept>
+#include <iterator>
 
 using namespace udg;
 using namespace udg::rlp;
@@ -22,6 +27,11 @@ std::string udg::eth::Transaction::to_string() const {
 }
 
 udg::eth::Transaction::Transaction(const std::vector<RLPData>& from_rlp) {
+
+	if (from_rlp.size() != 9) {
+		throw std::invalid_argument("Invalid transaction RLP.");
+	}
+
 	rlpvec acc_non;
 	rlpvec price;
 	rlpvec gas_limit;
@@ -185,6 +195,11 @@ std::string udg::eth::Header::to_string() const {
 }
 
 udg::eth::Header::Header(const std::vector<rlp::RLPData>& from_rlp) {
+
+	if (from_rlp.size() != 15) {
+		throw std::invalid_argument("Invalid Header RLP.");
+	}
+
 	rlpvec parent_hash;
 	rlpvec uncle_hash;
 	rlpvec coinbase;
@@ -324,7 +339,10 @@ rlp::rlpvec udg::eth::Block::to_rlp() const {
 
 void udg::eth::Block::load_rlp(const rlpvec& rlp) {
 	RLPData dat;
-	dat.parse_bytes(rlp.begin(), rlp.end());
+	auto len = dat.parse_bytes(rlp.begin(), rlp.end());
+	if (((unsigned long)len) != rlp.size()) {
+		throw std::invalid_argument("Invalid Block RLP.");
+	}
 
 	std::vector<RLPData> all_data;
 	dat.retrieve_arr(all_data);
@@ -374,10 +392,106 @@ bool udg::eth::Header::validate() const {
 		return false;
 	}
 
+	uint64_t blk_num = (uint64_t)this->number;
 
+	// Need to validate PoW
+	EthashCache ecache = ethash::get_cache(blk_num);
+	EthashResult res = ecache.hashimoto(ethash::get_full_size(blk_num),
+			rlp_keccak256(*this),
+			this->nonce,
+			true);
+
+	if (res.mix_digest != this->mix_digest) {
+		io::cout << "Invalid proof of work.\nGiven mix_digest:\n"
+				<< this->mix_digest.to_string() << "\n"
+				<< "Proper mix_digest:\n"
+				<< res.mix_digest.to_string() << "\n";
+		return false;
+	}
+
+	return true;
 }
 
 bool udg::eth::Block::validate() const {
+
+	bool head_ok = this->header.validate();
+	bool tx_ok = udg::all_match(
+			this->transactions.begin(),
+			this->transactions.end(),
+			[](const Transaction& x) -> bool {return x.validate();});
+	bool unc_ok = udg::all_match(
+			this->uncles.begin(),
+			this->uncles.end(),
+			[](const Header& x) -> bool {return x.validate();}
+	);
+	bool components_ok = head_ok && tx_ok && unc_ok;
+
+	if (!components_ok) {
+		io::cout << "Portion of block data failed consistency check.\n";
+
+		if (!head_ok) {
+			io::cout << "Header validation failed.\n";
+		}
+
+		if (!tx_ok) {
+			io::cout << "Transaction validation failed.\n";
+		}
+
+		if (!unc_ok) {
+			io::cout << "Uncle validation failed.\n";
+		}
+
+		return false;
+	}
+
+	// Validate hashes.
+
+	//Tx Hash
+	{
+		std::vector<rlpvec> txns;
+		std::transform(this->transactions.begin(),
+				this->transactions.end(),
+				std::back_insert_iterator<std::vector<rlpvec> >(txns),
+				[](const Transaction& x) -> rlpvec {return x.to_rlp();});
+
+		rlpvec txns_rlp = rlp::to_rlp_list(txns);
+		h256 txns_sha;
+
+		keccak256 ctxt;
+		ctxt.update(&txns_rlp[0], txns_rlp.size());
+		ctxt.finalize();
+		txns_sha = ctxt.get_digest();
+
+		if (txns_sha != this->header.tx_hash) {
+			io::cout << "Transaction hash != Header Transaction hash\n";
+			return false;
+		}
+	}
+
+	{
+		std::vector<rlpvec> uncs;
+		std::transform(this->uncles.begin(),
+				this->uncles.end(),
+				std::back_insert_iterator<std::vector<rlpvec> >(uncs),
+				[](const Header& x) -> rlpvec {return x.to_rlp();});
+
+		rlpvec uncs_rlp = rlp::to_rlp_list(uncs);
+		h256 uncs_sha;
+
+		keccak256 ctxt;
+		ctxt.update(&uncs_rlp[0], uncs_rlp.size());
+		ctxt.finalize();
+		uncs_sha = ctxt.get_digest();
+
+		if (uncs_sha != this->header.uncle_hash) {
+			io::cout << "Uncle hash != Header Uncle hash\n";
+			return false;
+		}
+	}
+
+
+
+	return true;
 }
 
 std::string udg::eth::Block::to_string() const {

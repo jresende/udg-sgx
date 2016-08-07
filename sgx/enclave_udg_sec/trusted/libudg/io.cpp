@@ -15,7 +15,7 @@
 
 using namespace udg;
 
-#define MAX_PUT_SIZE 1024 * 1024 * 1024
+#define MAX_PUT_SIZE 1024 * 1024
 
 void p(const char* s) {
 	ocall_print(s);
@@ -61,18 +61,21 @@ io::simple_io& udg::io::simple_io::operator <<(const uint8_t* str) {
 io::simple_io& udg::io::simple_io::operator <<(long long int num) {
 
 	*this << udg::lltostr(num);
+	return *this;
 
 }
 
 io::simple_io& udg::io::simple_io::operator <<(long int num) {
 
 	*this << udg::lltostr(num);
+	return *this;
 
 }
 
 io::simple_io& udg::io::simple_io::operator <<(int num) {
 
 	*this << udg::lltostr(num);
+	return *this;
 
 }
 
@@ -80,6 +83,7 @@ io::simple_io& udg::io::simple_io::operator <<(int num) {
 io::simple_io& udg::io::simple_io::operator <<(short num) {
 
 	*this << udg::lltostr(num);
+	return *this;
 
 }
 
@@ -89,37 +93,48 @@ io::simple_io& udg::io::simple_io::operator <<(char num) {
 	char c[2] = {};
 	c[0] = num;
 	*this << c;
+	return *this;
 
 }
 
 io::simple_io& udg::io::simple_io::operator <<(unsigned long long int num) {
 
 	*this << udg::ulltostr(num);
+	return *this;
 
 }
 
 io::simple_io& udg::io::simple_io::operator <<(unsigned long int num) {
 
 	*this << udg::ulltostr(num);
+	return *this;
 
 }
 
 io::simple_io& udg::io::simple_io::operator <<(unsigned int num) {
 
 	*this << udg::ulltostr(num);
+	return *this;
 
 }
 
 io::simple_io& udg::io::simple_io::operator <<(unsigned short num) {
 
 	*this << udg::ulltostr(num);
+	return *this;
 
 }
 
 io::simple_io& udg::io::simple_io::operator <<(unsigned char num) {
 
 	*this << (char) num;
+	return *this;
 
+}
+
+io::simple_io& udg::io::simple_io::operator <<(bool b) {
+	*this << (b ? "true" : "false");
+	return *this;
 }
 
 udg::io::DBSession::DBSession(const char* filename, bool create_if_not_exists) {

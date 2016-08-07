@@ -15,6 +15,28 @@
 
 namespace udg {
 	namespace eth {
+
+		struct EthashResult {
+			h256 mix_digest;
+			h256 result;
+		};
+
+		class EthashCache {
+			std::vector<udg::shared_ptr<h512>> values;
+
+		public:
+			EthashCache() = default;
+			EthashCache(uint64_t cache_size, h256 seed);
+
+			udg::shared_ptr<h512> operator[](uint64_t index);
+
+			h512 calc_dataset_item(uint64_t i);
+
+			EthashResult hashimoto(uint64_t full_size, h256 header_hash, FixedSizedByteArray<8> nonce,
+					bool be_nonce = true);
+
+		};
+
 		namespace ethash {
 			const uint64_t WORD_BYTES = 4;
 			const uint64_t DATASET_BYTES_INIT = 0x40000000;
@@ -41,27 +63,9 @@ namespace udg {
 				return x * FNV_PRIME ^ y;
 			}
 
+			EthashCache get_cache(uint64_t block_number);
+
 		}
-
-		struct EthashResult {
-			h256 mix_digest;
-			h256 result;
-		};
-
-		class EthashCache {
-			std::vector<udg::shared_ptr<h512>> values;
-
-		public:
-			EthashCache(uint64_t cache_size, h256 seed);
-
-			udg::shared_ptr<h512> operator[](uint64_t index);
-
-			h512 calc_dataset_item(uint64_t i);
-
-			EthashResult hashimoto(uint64_t full_size, h256 header_hash, FixedSizedByteArray<8> nonce,
-					bool be_nonce = true);
-
-		};
 
 	}
 }

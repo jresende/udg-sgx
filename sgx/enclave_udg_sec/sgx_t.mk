@@ -49,7 +49,7 @@ Udg_sec_Include_Paths := -IInclude -Itrusted -I$(SGX_SDK)/include -I$(SGX_SDK)/i
 
 
 Flags_Just_For_C := -Wno-implicit-function-declaration -std=c11
-Common_C_Cpp_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(Udg_sec_Include_Paths) -fno-builtin-printf -I. -DINTEL_SGX_ENV
+Common_C_Cpp_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(Udg_sec_Include_Paths) -fno-builtin-printf -I. -DINTEL_SGX_ENV -Wreturn-type -Wextra -Werror
 Udg_sec_C_Flags := $(Flags_Just_For_C) $(Common_C_Cpp_Flags)
 Udg_sec_Cpp_Flags :=  $(Common_C_Cpp_Flags) -std=c++11 -nostdinc++ -fno-builtin-printf -I.
 

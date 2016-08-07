@@ -198,7 +198,7 @@ int udg::crypto::RLPxSession::sendAuth() {
 	int r = this->conn.send(&authInitiator[0], authInitiator.size(), 0x100);
 	io::cdebug << "Send returned: " << r;
 
-	return (r == authInitiator.size()) ? 0 : -1;
+	return ((unsigned long)r == authInitiator.size()) ? 0 : -1;
 }
 
 int udg::crypto::RLPxSession::recvAck() {

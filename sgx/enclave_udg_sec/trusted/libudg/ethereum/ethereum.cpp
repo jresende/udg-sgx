@@ -34,7 +34,7 @@ std::string udg::ethereum::encode_bytes(const std::string &buf) {
 
 std::string udg::ethereum::decode_bytes(const char *buf) {
     uint256_t str_size(buf, buf + 32);
-    uint64_t smaller_str_size = str_size;
+    uint64_t smaller_str_size = (uint64_t) str_size;
 
     return std::string(buf + 32, buf + 32 + smaller_str_size);
 }

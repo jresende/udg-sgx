@@ -13,7 +13,7 @@ udg::uint256_t::uint256_t(const uint64_t &inp) {
     this->data[0] = inp;
 }
 
-udg::uint256_t::operator uint64_t() {
+udg::uint256_t::operator uint64_t() const {
     return this->data[0];
 }
 
