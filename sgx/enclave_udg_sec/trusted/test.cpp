@@ -99,6 +99,8 @@ int ecall_udg_test_rlp() {
 
     }
 
+    io::cout << simple.to_string() << "\n";
+
     return 0;
 }
 

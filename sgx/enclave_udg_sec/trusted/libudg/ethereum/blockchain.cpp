@@ -362,3 +362,43 @@ void udg::eth::Block::load_rlp(const rlpvec& rlp) {
 	}
 
 }
+
+// Need to figure out why signature verification does not work
+bool udg::eth::Transaction::validate() const {
+	return true;
+}
+
+bool udg::eth::Header::validate() const {
+	if (this->number != ZERO &&
+			this->extra.size() > 32) {
+		return false;
+	}
+
+
+}
+
+bool udg::eth::Block::validate() const {
+}
+
+std::string udg::eth::Block::to_string() const {
+	std::string out = "Block {\n";
+	out.append(this->header.to_string());
+	out.append("\n\n");
+	out.append("Transactions{\n");
+
+	for (auto& tx : this->transactions) {
+		out.append(tx.to_string());
+		out.append("\n");
+	}
+
+	out.append("}\n\nUncles {\n");
+
+	for (auto& unc : this->uncles) {
+		out.append(unc.to_string());
+		out.append("\n");
+	}
+
+	out.append("}\n}");
+
+	return out;
+}

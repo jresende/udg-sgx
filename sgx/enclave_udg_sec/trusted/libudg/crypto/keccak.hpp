@@ -10,11 +10,13 @@
 #include "../byte_array.hpp"
 #include <string>
 #include <stdint.h>
+#include <stdexcept>
 
 namespace udg {
     namespace crypto {
         class keccak256 {
             sha3_context ctxt;
+            bool finalized;
 
         public:
             keccak256();
@@ -22,13 +24,20 @@ namespace udg {
             void update(const uint8_t* buf, size_t len);
             void update(const std::string& msg);
 
+            template <unsigned long int N>
+            void update(const FixedSizedByteArray<N>& bytes) {
+            	this->update(bytes.data(), N);
+            }
+
             void finalize();
 
             void get_digest(uint8_t* buf) const;
+            h256 get_digest() const;
 
         };
         class keccak384 {
             sha3_context ctxt;
+            bool finalized;
 
         public:
             keccak384();
@@ -36,12 +45,19 @@ namespace udg {
             void update(const uint8_t* buf, size_t len);
             void update(const std::string& msg);
 
+            template <unsigned long int N>
+			void update(const FixedSizedByteArray<N>& bytes) {
+				this->update(bytes.data(), N);
+			}
+
             void finalize();
 
             void get_digest(uint8_t* buf) const;
+            h384 get_digest() const;
         };
         class keccak512 {
             sha3_context ctxt;
+            bool finalized;
 
         public:
             keccak512();
@@ -49,9 +65,15 @@ namespace udg {
             void update(const uint8_t* buf, size_t len);
             void update(const std::string& msg);
 
+            template <unsigned long int N>
+			void update(const FixedSizedByteArray<N>& bytes) {
+				this->update(bytes.data(), N);
+			}
+
             void finalize();
 
             void get_digest(uint8_t* buf) const;
+            h512 get_digest() const;
         };
 
         std::string digest_str(const keccak256&);
@@ -59,6 +81,11 @@ namespace udg {
         std::string digest_str(const keccak512&);
 
         h256 rlp_keccak256(const rlp::RLPConvertable&);
+
+        class keccak_not_finalized : public std::runtime_error {
+        public :
+        	keccak_not_finalized() : std::runtime_error("Cannot get digest before finalizing hash.") {}
+        };
     }
 }
 

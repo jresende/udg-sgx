@@ -9,6 +9,7 @@
 #define SGX_ENCLAVE_UDG_SEC_TRUSTED_LIBUDG_CRYPTO_ECC_HPP_
 
 #include <stdint.h>
+#include <algorithm>
 #include "secp256k1/include/secp256k1_recovery.h"
 #include "../byte_array.hpp"
 
@@ -25,9 +26,17 @@ namespace udg {
 		struct SignatureStruct
 		{
 			SignatureStruct() = default;
-			SignatureStruct(Signature const& _s) { *(h520*)this = _s; }
+			SignatureStruct(Signature const& _s): r(_s.begin(), _s.begin() + 32),
+					s(_s.begin() + 32, _s.begin() + 64),
+					v(_s[64]) {  }
 			SignatureStruct(h256 const& _r, h256 const& _s, uint8_t _v): r(_r), s(_s), v(_v) {}
-			operator Signature() const { return *(h520 const*)this; }
+			operator Signature() const {
+				Signature out;
+				std::copy(r.begin(), r.end(), out.begin());
+				std::copy(s.begin(), s.end(), out.begin() + 32);
+				out[64] = v;
+				return out;
+			}
 
 			/// @returns true if r,s,v values are valid, otherwise false
 			bool isValid() const;

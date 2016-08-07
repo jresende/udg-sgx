@@ -11,6 +11,8 @@
 
 #include <sgx_urts.h>
 #include <sgx_status.h>
+#include <iostream>
+#include <string>
 #include "udg.h"
 
 #include "udg_sec_u.h"
@@ -205,6 +207,54 @@ void ocall_udg_sec_sample(const char *str)
     printf("%s", str);
 }
 
+enum class Action {
+	ERROR,
+	HELP,
+	PARSE,
+	VERIFY,
+	TEST
+};
+
+Action parse_args(int argc, char* argv[]) {
+	if (argc < 2) {
+		return Action::ERROR;
+	}
+
+	std::string first_arg(argv[1]);
+
+	if (first_arg.compare("help") == 0) {
+		return Action::HELP;
+	}
+
+	if (first_arg.compare("parse")) {
+		return Action::PARSE;
+	}
+
+	if (first_arg.compare("verify")) {
+		return Action::VERIFY;
+	}
+
+	if (first_arg.compare("test")) {
+		return Action::TEST;
+	}
+
+	return Action::ERROR;
+}
+
+void print_help() {
+	std::cout << "Usage: udg switch args...\n"
+			<< "    Switches:\n"
+			<< "        help        print this help message, then exit.\n"
+			<< "        parse       parse the rlp representation of a\n"
+			   "                    block, print out a plain text representation.\n"
+			<< "        verify      parse and verify the contents of a block.\n"
+			<< "        test        run the tests built into the executable."
+			<< std::endl;
+}
+
+void print_error() {
+	std::cerr << "Unrecognized or invalid parameters." << std::endl;
+}
 
 /* Application entry */
 int SGX_CDECL main(int argc, char *argv[])
@@ -230,21 +280,21 @@ int SGX_CDECL main(int argc, char *argv[])
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     int ecall_return = 0;
 
-    ret = ecall_udg_sec_main(global_eid, &ecall_return);
-    if (ret != SGX_SUCCESS)
-        abort();
+//    ret = ecall_udg_sec_main(global_eid, &ecall_return);
+//    if (ret != SGX_SUCCESS)
+//        abort();
 
-    ret = ecall_udg_test_rlp(global_eid, &ecall_return);
-	if (ret != SGX_SUCCESS || ecall_return != 0)
-		abort();
+//    ret = ecall_udg_test_rlp(global_eid, &ecall_return);
+//	if (ret != SGX_SUCCESS || ecall_return != 0)
+//		abort();
 
-    ret = ecall_udg_test_ECIES(global_eid, &ecall_return);
-    if (ret != SGX_SUCCESS || ecall_return != 0)
-		abort();
-
-    ret = ecall_udg_test_RLPxHandshake(global_eid, &ecall_return);
-	if (ret != SGX_SUCCESS || ecall_return != 0)
-		abort();
+//    ret = ecall_udg_test_ECIES(global_eid, &ecall_return);
+//    if (ret != SGX_SUCCESS || ecall_return != 0)
+//		abort();
+//
+//    ret = ecall_udg_test_RLPxHandshake(global_eid, &ecall_return);
+//	if (ret != SGX_SUCCESS || ecall_return != 0)
+//		abort();
 
     if (ecall_return == 0) {
       printf("Application ran with success\n");

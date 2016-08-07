@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <string>
+#include <stdexcept>
 #include <algorithm>
 #include "hex_encode.hpp"
 #include "ethereum/rlp.hpp"
@@ -122,7 +123,7 @@ namespace udg {
 			return out;
 		}
 
-		FixedSizedByteArray operator^=(const FixedSizedByteArray& that) const {
+		FixedSizedByteArray operator^=(const FixedSizedByteArray& that) {
 
 			for (size_t i = 0; i < FixedSizedByteArray::size; i++) {
 				this->_data[i] ^= that[i];
@@ -131,7 +132,7 @@ namespace udg {
 			return *this;
 		}
 
-		FixedSizedByteArray operator|=(const FixedSizedByteArray& that) const {
+		FixedSizedByteArray operator|=(const FixedSizedByteArray& that) {
 			for (size_t i = 0; i < FixedSizedByteArray::size; i++) {
 				this->_data[i] |= that[i];
 			}
@@ -139,7 +140,7 @@ namespace udg {
 			return *this;
 		}
 
-		FixedSizedByteArray operator&=(const FixedSizedByteArray& that) const {
+		FixedSizedByteArray operator&=(const FixedSizedByteArray& that) {
 			for (size_t i = 0; i < FixedSizedByteArray::size; i++) {
 				this->_data[i] &= that[i];
 			}
@@ -248,14 +249,51 @@ namespace udg {
 			return rlp::to_rlp((const char*)this->data(), FixedSizedByteArray::size);
 		}
 
+		template <unsigned long int M>
+		FixedSizedByteArray<M> slice(uint64_t at) {
+			if (at + M > N) {
+				throw std::invalid_argument("Slice cannot be larger than array.");
+			}
+
+			return FixedSizedByteArray<M>(this->begin() + at, this->begin() + at + M);
+		}
+
+		template <typename T>
+		T reinterpret() const {
+			static_assert(sizeof(T) <= N, "Object to copy data into must be same or smaller size than array.");
+			T out;
+			memcpy(&out, this->_data, sizeof(T));
+			return out;
+		}
+
+		template <typename T>
+		T reinterpret_at(uint64_t at) {
+			return this->slice<sizeof(T)>(at).reinterpret<T>();
+		}
+
+		template <typename T>
+		static FixedSizedByteArray from(const T& inp) {
+			static_assert(sizeof(T) <= N, "Object to arrayify must be of same or smaller size than array.");
+			const uint8_t* obj_dat = reinterpret_cast<const uint8_t*>(&inp);
+			return FixedSizedByteArray(obj_dat, obj_dat + sizeof(T));
+		}
+
+		FixedSizedByteArray reverse() const {
+			FixedSizedByteArray out;
+			std::reverse_copy(this->begin(), this->end(), out.begin());
+			return out;
+		}
+
 	};
 
 	using h128 = FixedSizedByteArray<16>;
 	using h160 = FixedSizedByteArray<20>;
 	using h256 = FixedSizedByteArray<32>;
+	using h384 = FixedSizedByteArray<48>;
 	using h512 = FixedSizedByteArray<64>;
 	using h520 = FixedSizedByteArray<65>;
 	using h1024 = FixedSizedByteArray<128>;
+
 
 }
 
