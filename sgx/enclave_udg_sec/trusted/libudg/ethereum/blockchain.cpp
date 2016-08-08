@@ -395,19 +395,19 @@ bool udg::eth::Header::validate() const {
 	uint64_t blk_num = (uint64_t)this->number;
 
 	// Need to validate PoW
-	EthashCache ecache = ethash::get_cache(blk_num);
-	EthashResult res = ecache.hashimoto(ethash::get_full_size(blk_num),
-			rlp_keccak256(*this),
-			this->nonce,
-			true);
-
-	if (res.mix_digest != this->mix_digest) {
-		io::cout << "Invalid proof of work.\nGiven mix_digest:\n"
-				<< this->mix_digest.to_string() << "\n"
-				<< "Proper mix_digest:\n"
-				<< res.mix_digest.to_string() << "\n";
-		return false;
-	}
+//	EthashCache ecache = ethash::get_cache(blk_num);
+//	EthashResult res = ecache.hashimoto(ethash::get_full_size(blk_num),
+//			rlp_keccak256(*this),
+//			this->nonce,
+//			true);
+//
+//	if (res.mix_digest != this->mix_digest) {
+//		io::cout << "Invalid proof of work.\nGiven mix_digest:\n"
+//				<< this->mix_digest.to_string() << "\n"
+//				<< "Proper mix_digest:\n"
+//				<< res.mix_digest.to_string() << "\n";
+//		return false;
+//	}
 
 	return true;
 }
@@ -464,6 +464,8 @@ bool udg::eth::Block::validate() const {
 
 		if (txns_sha != this->header.tx_hash) {
 			io::cout << "Transaction hash != Header Transaction hash\n";
+			io::cout << txns_sha.to_string() << "\n";
+			io::cout << this->header.tx_hash.to_string() << "\n";
 			return false;
 		}
 	}
@@ -485,6 +487,8 @@ bool udg::eth::Block::validate() const {
 
 		if (uncs_sha != this->header.uncle_hash) {
 			io::cout << "Uncle hash != Header Uncle hash\n";
+			io::cout << uncs_sha.to_string() << "\n";
+			io::cout << this->header.uncle_hash.to_string() << "\n";
 			return false;
 		}
 	}
