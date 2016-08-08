@@ -19,7 +19,7 @@ namespace udg {
 	namespace eth {
 
 		struct Node {
-			h256 hash() const = 0;
+			virtual h256 hash() const = 0;
 			virtual ~Node() {};
 		};
 
