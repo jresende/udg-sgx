@@ -19,6 +19,8 @@
 #include "libudg/ethereum/rlp.hpp"
 #include "libudg/time.hpp"
 #include "libudg/ethereum/blockchain.hpp"
+#include "libudg/ethereum/ethash.hpp"
+#include <algorithm>
 #include <stdint.h>
 #include <sgx_tcrypto.h>
 
@@ -196,4 +198,132 @@ int ecall_udg_test_uint256() {
 
 
     return 0;
+}
+
+#define BARRAY_SIZE 64
+int ecall_udg_test_byte_array() {
+
+	FixedSizedByteArray<BARRAY_SIZE> zarr;
+	auto rand = FixedSizedByteArray<BARRAY_SIZE>::random();
+
+	io::cdebug << "===== BYTE ARRAY TESTS =====\n";
+
+	io::cdebug << "Test array :"
+			<< rand.to_string();
+
+	io::cdebug << "XOR'd with self"
+			<< (rand ^ rand).to_string();
+
+	if ((rand ^ rand) != zarr) {
+		io::cdebug << "XOR NOT WORKING";
+		return 1;
+	}
+
+	rand ^= rand;
+
+	if (rand != zarr) {
+		io::cdebug << "^= NOT WORKING";
+		return 1;
+	}
+
+	// 0xAA = 10101010
+	// 0x55 = 01010101
+
+	auto& aa = rand; // avoid massive stack via reuse
+	std::fill(aa.begin(), aa.end(), 0xAA);
+
+	FixedSizedByteArray<BARRAY_SIZE> x55(0x55);
+
+	io::cdebug << "AA:"
+			<< aa.to_string()
+			<< "55:"
+			<< x55.to_string();
+
+	FixedSizedByteArray<BARRAY_SIZE> ff(0xFF);
+
+	io::cdebug << "Operator tests"
+			<< ((aa ^ x55) == ff)
+			<< ((x55 ^ aa) == ff)
+			<< ((x55 | aa) == ff)
+			<< ((aa | x55) == ff)
+			<< ((aa & x55) == zarr)
+			<< ((x55 & aa) == zarr);
+
+
+	rand = FixedSizedByteArray<BARRAY_SIZE>::random();
+
+	io::cdebug << "Slices";
+	io::cdebug << "First section is making sure slices and ref slices work similarly."
+			<< "Second part acts like this:";
+	io::cdebug << "XOR'd byte reference slice: first is slice view,"
+					"\nsecond is slice pre-op, third is the real backing array.";
+
+	for (uint64_t i = 0; i < BARRAY_SIZE / 8; i++) {
+		auto bar_a = rand.slice_ref<8>(i * 8);
+		auto actual_slice = rand.slice<8>(i * 8);
+
+		io::cdebug << i
+				<< bar_a.to_string()
+				<< actual_slice.to_string();
+
+		if (!std::equal(bar_a.begin(), bar_a.end(), actual_slice.begin())) {
+			return 1;
+		}
+
+		bar_a ^= bar_a;
+
+		io::cdebug << "Part two.";
+
+		io::cdebug << bar_a.to_string();
+		io::cdebug << actual_slice.to_string();
+		io::cdebug << rand.slice<8>(i*8).to_string();
+
+	}
+
+	auto& a5 = rand;
+	auto& x5a = x55;
+
+	std::fill(a5.begin(), a5.end(), 0xA5);
+	std::fill(x5a.begin(), x5a.end(), 0x5A);
+
+	FixedSizedByteArray<4> test;
+	test.slice_ref<4>(0) ^= FixedSizedByteArray<4>::from<uint32_t>(0xFFAAFFDD);
+
+	io::cdebug << test.to_string();
+
+	if (test.reinterpret<uint32_t>() != 0xFFAAFFDD) {
+		return 1;
+	}
+
+	return 0;
+
+}
+
+int ecall_test_ethash() {
+
+	io::cdebug << "========================="
+	    	<< __PRETTY_FUNCTION__
+	    	<< "=========================";
+
+	h256 seed("372eca2454ead349c3df0ab5d00b0b706b23e49d469387db91811cee0358fc6d");
+
+	eth::EthashCache ec = eth::ethash::get_cache(22);
+	auto res = ec.hashimoto(eth::ethash::get_full_size(22),
+			seed, FixedSizedByteArray<8>::from<uint64_t>(0x495732e0ed7a801c), true);
+
+	io::cdebug << "Should be:"
+			<< "0x00000b184f1fdd88bfd94c86c39e65db0c36144d5e43f745f722196e730cb614"
+			<< res.result.to_string()
+			<< res.mix_digest.to_string();
+
+	return 0;
+}
+
+int ecall_test() {
+	return
+			ecall_udg_test_rlp()
+			| ecall_udg_test_ECIES()
+			| ecall_udg_test_uint256()
+			| ecall_udg_test_byte_array()
+			| ecall_test_ethash();
 }

@@ -55,6 +55,7 @@ enclave {
     	    public int ecall_udg_test_RLPxHandshake();
     	    public int ecall_udg_test_rlp();
     	    public int ecall_udg_test_uint256();
+    	    public int ecall_test();
     	    
     	    public int ecall_udg_parse([in, string] const char* block_rlp);
     	    public int ecall_udg_verify([in, string] const char* block_rlp);

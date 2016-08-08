@@ -297,13 +297,7 @@ int SGX_CDECL main(int argc, char *argv[])
     switch (act) {
 		case Action::TEST: {
 
-				ret = ecall_udg_test_rlp(global_eid, &ecall_return);
-				if (ret != SGX_SUCCESS || ecall_return != 0) {
-					print_failure();
-					return ecall_return;
-				}
-
-				ret = ecall_udg_test_ECIES(global_eid, &ecall_return);
+				ret = ecall_test(global_eid, &ecall_return);
 				if (ret != SGX_SUCCESS || ecall_return != 0) {
 					print_failure();
 					return ecall_return;

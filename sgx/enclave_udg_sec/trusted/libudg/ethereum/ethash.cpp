@@ -132,11 +132,8 @@ h512 udg::eth::EthashCache::calc_dataset_item(uint64_t i) {
 	auto r = HASH_BYTES / WORD_BYTES;
 
 	h512 mix(*values[i % n]);
-	auto data_word = mix.reinterpret<uint32_t>();
+	mix.slice_ref<WORD_BYTES>(0) ^= FixedSizedByteArray<WORD_BYTES>::from<uint32_t>((uint32_t)i);
 	uint32_t node_index = (uint32_t) i;
-	data_word ^= node_index;
-	auto reinsrt = FixedSizedByteArray<4>::from<uint32_t>(data_word);
-	std::copy(reinsrt.begin(), reinsrt.end(), mix.begin());
 
 	keccak512 ctxt;
 	ctxt.update(mix);
@@ -145,8 +142,7 @@ h512 udg::eth::EthashCache::calc_dataset_item(uint64_t i) {
 
 	for (uint32_t j = 0; j < DATASET_PARENTS; j++) {
 		auto cache_index = ethash::fnv(node_index ^ j,
-				mix.slice<WORD_BYTES>((j % r) * WORD_BYTES)
-					.reinterpret<uint32_t>());
+				mix.reinterpret_at<uint32_t>((j % r) * WORD_BYTES));
 
 		uint32_t fnv_results[h512::size / WORD_BYTES] = {};
 
@@ -154,12 +150,10 @@ h512 udg::eth::EthashCache::calc_dataset_item(uint64_t i) {
 
 		for (uint32_t i = 0; i < NODE_WORDS; i++) {
 			uint32_t relevant_mix_word = mix
-					.slice<WORD_BYTES>(i * WORD_BYTES)
-					.reinterpret<uint32_t>();
+					.reinterpret_at<uint32_t>(i * WORD_BYTES);
 
 			uint32_t relevant_companion_word = companion
-					.slice<WORD_BYTES>(i * WORD_BYTES)
-					.reinterpret<uint32_t>();
+					.reinterpret_at<uint32_t>(i * WORD_BYTES);
 
 			fnv_results[i] = fnv(relevant_mix_word, relevant_companion_word);
 		}

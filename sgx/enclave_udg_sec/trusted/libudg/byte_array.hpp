@@ -19,6 +19,9 @@
 
 namespace udg {
 
+	template <unsigned long int N, unsigned long int Len>
+	class ByteArrayRef;
+
 	template <unsigned long int N>
 	class FixedSizedByteArray {
 
@@ -74,7 +77,7 @@ namespace udg {
 
 		static const unsigned int size = N;
 
-		const uint8_t& operator[](size_t index) const { return _data[index]; }
+		uint8_t operator[](size_t index) const { return _data[index]; }
 		uint8_t& operator[](size_t index) {return _data[index];}
 
 		const uint8_t* data() const { return _data; }
@@ -250,6 +253,9 @@ namespace udg {
 		}
 
 		template <unsigned long int M>
+		ByteArrayRef<N, M> slice_ref(uint64_t at);
+
+		template <unsigned long int M>
 		FixedSizedByteArray<M> slice(uint64_t at) {
 			if (at + M > N) {
 				throw std::invalid_argument("Slice cannot be larger than array.");
@@ -268,7 +274,7 @@ namespace udg {
 
 		template <typename T>
 		T reinterpret_at(uint64_t at) {
-			return this->slice<sizeof(T)>(at).reinterpret<T>();
+			return this->slice_ref<sizeof(T)>(at).reinterpret<T>();
 		}
 
 		template <typename T>
@@ -285,6 +291,243 @@ namespace udg {
 		}
 
 	};
+
+	template <unsigned long int N, unsigned long int Len>
+	class ByteArrayRef {
+		FixedSizedByteArray<N>* _ref;
+		uint64_t offset;
+
+	public:
+
+		const static unsigned long int base_size = N;
+		const static unsigned long int size = Len;
+
+		ByteArrayRef(FixedSizedByteArray<N>& that, uint64_t offset = 0)
+			: _ref(&that), offset(offset) {}
+
+		ByteArrayRef(const ByteArrayRef& that) : _ref(that._ref), offset(that.offset) {}
+		ByteArrayRef& operator=(ByteArrayRef that) {
+			std::swap(this->_ref, that._ref);
+			std::swap(offset, that.offset);
+
+			return *this;
+		}
+
+		typedef uint8_t* iterator;
+		typedef const uint8_t* const_iterator;
+
+		uint8_t operator[](size_t index) const { return _ref[index + offset]; }
+		uint8_t& operator[](size_t index) { return _ref[index + offset]; }
+
+		const uint8_t* data() const { return _ref->data() + offset; }
+		uint8_t* data() { return _ref->data() + offset; }
+
+		iterator begin() { return this->data(); };
+		const_iterator begin() const {return this->data();};
+
+		iterator end() {return this->begin() + Len; };
+		const_iterator end() const { return this->begin() + Len; }
+
+		bool operator==(const FixedSizedByteArray<Len>& that) const {
+			return std::equal(this->begin(), this->end(), that.begin());
+		}
+		bool operator!=(const FixedSizedByteArray<Len>& that) const {
+			return !(*this == that);
+		}
+
+		bool operator==(const ByteArrayRef& that) const {
+			return std::equal(this->begin(), this->end(), that.begin());
+		}
+		bool operator!=(const ByteArrayRef& that) const {
+			return !(*this == that);
+		}
+
+		FixedSizedByteArray<Len> operator^(const FixedSizedByteArray<Len>& that) const {
+			FixedSizedByteArray<Len> out;
+
+			for (size_t i = offset; i < offset + Len; i++) {
+				out[i] = this->_ref->data()[i] ^ that[i - offset];
+			}
+
+			return out;
+		}
+
+		ByteArrayRef& operator^=(const FixedSizedByteArray<Len>& that) {
+
+			for (size_t i = offset; i < offset + Len; i++) {
+				this->_ref->data()[i] ^= that[i - offset];
+			}
+
+			return *this;
+		}
+
+		ByteArrayRef& operator|=(const FixedSizedByteArray<Len>& that) {
+
+			for (size_t i = offset; i < offset + Len; i++) {
+				this->_ref->data()[i] |= that[i - offset];
+			}
+
+			return *this;
+		}
+
+		ByteArrayRef& operator&=(const FixedSizedByteArray<Len>& that) {
+
+			for (size_t i = offset; i < offset + Len; i++) {
+				this->_ref->data()[i] &= that[i - offset];
+			}
+
+			return *this;
+		}
+
+		ByteArrayRef& operator^=(const ByteArrayRef& that) {
+
+			for (size_t i = 0; i < Len; i++) {
+				this->data()[i] ^= that.data()[i];
+			}
+
+			return *this;
+		}
+
+		ByteArrayRef& operator|=(const ByteArrayRef& that) {
+
+			for (size_t i = 0; i < Len; i++) {
+				this->data()[i] |= that.data()[i];
+			}
+
+			return *this;
+		}
+
+		ByteArrayRef& operator&=(const ByteArrayRef& that) {
+
+			for (size_t i = 0; i < Len; i++) {
+				this->data()[i] &= that.data()[i];
+			}
+
+			return *this;
+		}
+
+		std::string to_string() const {
+			return hex_encode(this->data(), ByteArrayRef::size);
+		}
+
+		void clear() {
+			memset(this->data(), 0, Len);
+		}
+
+		bool operator>(const FixedSizedByteArray<Len>& that) const {
+			for (uint8_t i = 0; i < Len; i++) {
+				if (this->_ref->data()[i + offset] > that[i]) {
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		bool operator<(const FixedSizedByteArray<Len>& that) const {
+			for (uint8_t i = 0; i < Len; i++) {
+				if (this->_ref->data()[i + offset] < that[i]) {
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		bool operator>=(const FixedSizedByteArray<Len>& that) const {
+			return !(*this < that);
+		}
+
+		bool operator<=(const FixedSizedByteArray<Len>& that) const {
+			return !(*this > that);
+		}
+
+		bool operator>(const ByteArrayRef& that) const {
+			for (uint8_t i = 0; i < Len; i++) {
+				if (this->_ref->data()[i + offset] > that[i]) {
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		bool operator<(const ByteArrayRef& that) const {
+			for (uint8_t i = 0; i < Len; i++) {
+				if (this->_ref->data()[i + offset] < that[i]) {
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		bool operator>=(const ByteArrayRef& that) const {
+			return !(*this < that);
+		}
+
+		bool operator<=(const ByteArrayRef& that) const {
+			return !(*this > that);
+		}
+
+		ByteArrayRef& reverse() {
+			std::reverse(this->begin(), this->end());
+			return *this;
+		}
+
+		rlp::rlpvec to_rlp() const {
+			uint32_t i;
+			for (i = 0; i < Len; i++) {
+				if (data()[i] != 0) {
+					break;
+				}
+			}
+
+			return rlp::to_rlp((const char*)this->data() + i, (size_t) Len - i);
+		}
+
+		rlp::rlpvec to_rlp_with_zeroes() const {
+			return rlp::to_rlp((const char*)this->data(), ByteArrayRef::size);
+		}
+
+		template <unsigned long int M>
+		ByteArrayRef<N, M> slice_ref(uint64_t at) {
+			if (at + M > Len) {
+				throw std::invalid_argument("Slice cannot be larger than array.");
+			}
+
+			return ByteArrayRef<N, M>(this->_ref, offset + at);
+		}
+
+		template <typename T>
+		T reinterpret() const {
+			static_assert(sizeof(T) <= Len, "Object to copy data into must be same or smaller size than array.");
+			T out;
+			memcpy(&out, this->data(), sizeof(T));
+			return out;
+		}
+
+		template <typename T>
+		T reinterpret_at(uint64_t at) {
+			return this->slice_ref<sizeof(T)>(at).reinterpret<T>();
+		}
+
+		FixedSizedByteArray<Len> unslice() const {
+			return FixedSizedByteArray<Len>(this->begin(), this->end());
+		}
+
+	};
+
+	template <unsigned long int N>
+	template <unsigned long int M>
+	inline
+	ByteArrayRef<N, M> FixedSizedByteArray<N>::slice_ref(uint64_t at) {
+		if (at + M > N) {
+			throw std::invalid_argument("Slice cannot be larger than array.");
+		}
+
+		return ByteArrayRef<N, M>(*this, at);
+	}
 
 	using h128 = FixedSizedByteArray<16>;
 	using h160 = FixedSizedByteArray<20>;

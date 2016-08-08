@@ -38,14 +38,14 @@ void udg::crypto::keccak384::get_digest(uint8_t *buf) const {
 	if (!this->finalized) {
 		throw crypto::keccak_not_finalized();
 	}
-    std::copy(this->ctxt.sb, this->ctxt.sb + 32, buf);
+    std::copy(this->ctxt.sb, this->ctxt.sb + 48, buf);
 }
 
 void udg::crypto::keccak512::get_digest(uint8_t *buf) const {
 	if (!this->finalized) {
 		throw crypto::keccak_not_finalized();
 	}
-    std::copy(this->ctxt.sb, this->ctxt.sb + 32, buf);
+    std::copy(this->ctxt.sb, this->ctxt.sb + 64, buf);
 }
 
 void udg::crypto::keccak384::finalize() {
