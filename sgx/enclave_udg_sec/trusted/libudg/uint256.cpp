@@ -61,13 +61,7 @@ uint256_t udg::uint256_t::add(const uint256_t &that) const {
             out.data[i]++;
         }
 
-        bool msbA, msbB, msbR;
-
-        msbA = (that.data[i] & (1ULL<<63)) != 0; // equivalent: (aa & (1<<31)) != 0;
-        msbB = (this->data[i] & (1ULL<<63)) != 0;
-        msbR = (out.data[i] & (1ULL<<63)) != 0;
-
-        carry = (msbA && msbB) || ( !msbR && ( msbA || msbB) );
+        carry = out.data[i] < this->data[0];
     }
 
     return out;

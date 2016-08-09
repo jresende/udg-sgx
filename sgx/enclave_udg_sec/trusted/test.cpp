@@ -17,6 +17,7 @@
 #include "libudg/crypto/secp256k1/include/secp256k1_recovery.h"
 #include "libudg/crypto/secp256k1/include/secp256k1.h"
 #include "libudg/ethereum/rlp.hpp"
+#include "libudg/uint256.hpp"
 #include "libudg/time.hpp"
 #include "libudg/ethereum/blockchain.hpp"
 #include "libudg/ethereum/ethash.hpp"
@@ -27,6 +28,8 @@
 using namespace udg;
 using namespace udg::crypto;
 using namespace udg::rlp;
+
+#define EQ_LINE "==================================="
 
 int ecall_udg_test_rlp() {
 
@@ -195,7 +198,18 @@ int ecall_udg_test_RLPxHandshake() {
 
 int ecall_udg_test_uint256() {
 
+	io::cdebug << EQ_LINE;
+	io::cdebug << __PRETTY_FUNCTION__
+			<< EQ_LINE;
 
+	uint256_t test_a(0x1);
+
+	for (uint8_t i = 0; i < 128; i++) {
+		test_a = test_a + test_a;
+		io::cdebug << test_a.be_serialize().to_string();
+	}
+
+	io::cdebug << test_a.be_serialize().to_string();
 
     return 0;
 }
@@ -317,19 +331,6 @@ int ecall_test_ethash() {
 		}
 	}
 
-	for (uint32_t i = 0; i < 30000; i++) {
-		h256 dag_seed((const uint8_t*)"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~", 32);
-		eth::EthashCache ec1(1024, dag_seed);
-//		io::cdebug << "0xb1698f829f90b35455804e5185d78f549fcb1bdce2bee006d4d7e68eb154b596be1427769eb1c3c3e93180c760af75f81d1023da6a0ffbe321c153a7c0103597";
-//		io::cdebug << ec1.calc_dataset_item(0).to_string();
-
-		if (h512("b1698f829f90b35455804e5185d78f549fcb1bdce2bee006d4d7e68eb154b596be1427769eb1c3c3e93180c760af75f81d1023da6a0ffbe321c153a7c0103597")
-				!= ec1.calc_dataset_item(0)) {
-			return 1;
-		}
-
-	} // Test destructor call; probably won't have enough ram otherwise.
-
 	h256 seed("372eca2454ead349c3df0ab5d00b0b706b23e49d469387db91811cee0358fc6d");
 
 	eth::EthashCache ec = eth::ethash::get_cache(22);
@@ -340,6 +341,11 @@ int ecall_test_ethash() {
 			<< "0x00000b184f1fdd88bfd94c86c39e65db0c36144d5e43f745f722196e730cb614"
 			<< res.result.to_string()
 			<< res.mix_digest.to_string();
+
+	if (res.result != h256("00000b184f1fdd88bfd94c86c39e65db0c36144d5e43f745f722196e730cb614")) {
+		io::cdebug << "Not working!";
+		return 1;
+	}
 
 	return 0;
 }

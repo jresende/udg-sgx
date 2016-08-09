@@ -15,22 +15,51 @@
 
 namespace udg {
 
+	/**
+	 *	Represents a 256-bit integer.
+	 */
     class uint256_t : public rlp::RLPConvertable {
         uint64_t data[4];
 
     public:
 
-        // InputIterator represents some iterator following
-        // the concept such that when dereferenced, the dereferenced type is a byte
-        // Assumption is that input is big-endian
+        /**
+         *
+         * @param begin
+         * @param end
+         */
         template <typename ForwardIterator>
         uint256_t(ForwardIterator begin, ForwardIterator end);
+
+        /**
+         * Copies the input and uses it as the value of the integer.
+         * @param inp becomes the value of the uint256_t
+         */
         uint256_t(const uint64_t& inp);
+
+        /**
+         * Creates an empty integer (represents 0)
+         */
         uint256_t();
+
+        /**
+         * Converts a hex string (e.g. "0x05a5a5a") into the equivalent integer.
+         * @param str a hex string
+         */
         uint256_t(const std::string& str);
 
+        /**
+         * Subtracts 1 from the current integer in-place
+         * @return this integer, decremented.
+         */
         uint256_t& decrement();
+
+        /**
+         * Adds 1 to the current integer in-place
+         * @return this integer, incremented
+         */
         uint256_t& increment();
+
         uint256_t add(const uint256_t& that) const;
         uint256_t sub(const uint256_t& that) const;
         uint256_t bneg() const;
