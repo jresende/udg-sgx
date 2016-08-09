@@ -1,3 +1,5 @@
 sgx/enclave_udg_sec/trusted/libudg/crypto/ecc/* linguist-vendored
 sgx/enclave_udg_sec/trusted/libudg/crypto/sha3.c linguist-vendored
 sgx/enclave_udg_sec/trusted/libudg/crypto/secp256k1/* linguist-vendored
+sgx/enclave_udg_sec/trusted/boost/* linguist-vendored
+sgx/enclave_udg_sec/trusted/libs/* linguist-vendored

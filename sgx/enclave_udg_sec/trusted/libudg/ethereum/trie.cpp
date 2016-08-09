@@ -135,7 +135,7 @@ static bool starts_with(const uint8_t full[], size_t full_len, const uint8_t par
 //
 //}
 
-void udg::eth::MemoryTrie::insert(udg::shared_ptr<Node> node,
+void udg::eth::MemoryTrie::insert(boost::shared_ptr<Node> node,
         const uint8_t prefix[], size_t prefix_len, const uint8_t key[],
         size_t key_len, const uint8_t val[], size_t val_len) {
 }

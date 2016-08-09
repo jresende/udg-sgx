@@ -82,7 +82,7 @@ udg::eth::EthashCache::EthashCache(uint64_t cache_size, h256 seed) {
 
 	uint32_t num_nodes = (uint32_t) cache_size / h512::size;
 
-	udg::shared_ptr<h512> first(new h512);
+	boost::shared_ptr<h512> first(new h512);
 	this->values.push_back(first);
 
 	keccak512 ctxt;
@@ -91,7 +91,7 @@ udg::eth::EthashCache::EthashCache(uint64_t cache_size, h256 seed) {
 	*first = ctxt.get_digest();
 
 	for (uint32_t i = 1; i < num_nodes; i++) {
-		udg::shared_ptr<h512> next(new h512);
+		boost::shared_ptr<h512> next(new h512);
 		ctxt = keccak512();
 		ctxt.update(*values[i-1]);
 		ctxt.finalize();
@@ -123,7 +123,7 @@ udg::eth::EthashCache::EthashCache(uint64_t cache_size, h256 seed) {
 
 }
 
-udg::shared_ptr<h512> udg::eth::EthashCache::operator [](uint64_t index) {
+boost::shared_ptr<h512> udg::eth::EthashCache::operator [](uint64_t index) {
 	return this->values[index];
 }
 

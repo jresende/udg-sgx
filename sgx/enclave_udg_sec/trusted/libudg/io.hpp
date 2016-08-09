@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include <string>
 #include <stdio.h>
-#include "mem.hpp"
+#include "boost/shared_ptr.hpp"
 
 namespace udg {
 
@@ -49,7 +49,7 @@ namespace udg {
 		extern simple_io cdebug;
 
 		class DBSession {
-			udg::shared_ptr<int> db_ref;
+			boost::shared_ptr<int> db_ref;
 		public:
 			DBSession(const char* filename, bool create_if_not_exists = true);
 			void put(const char* key, const char* value, bool encrypt = true);

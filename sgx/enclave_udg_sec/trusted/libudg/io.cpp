@@ -141,7 +141,7 @@ udg::io::DBSession::DBSession(const char* filename, bool create_if_not_exists) {
 	int desc;
 	ocall_db_open(&desc, filename, create_if_not_exists ? 1 : 0);
 
-	this->db_ref = udg::shared_ptr<int>(new int);
+	this->db_ref = boost::shared_ptr<int>(new int);
 	*db_ref = desc;
 }
 

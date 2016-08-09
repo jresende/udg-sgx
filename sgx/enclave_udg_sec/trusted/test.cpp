@@ -305,6 +305,31 @@ int ecall_test_ethash() {
 	    	<< __PRETTY_FUNCTION__
 	    	<< "=========================";
 
+	{
+		h256 dag_seed((const uint8_t*)"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~", 32);
+		eth::EthashCache ec1(1024, dag_seed);
+		io::cdebug << "0xb1698f829f90b35455804e5185d78f549fcb1bdce2bee006d4d7e68eb154b596be1427769eb1c3c3e93180c760af75f81d1023da6a0ffbe321c153a7c0103597";
+		io::cdebug << ec1.calc_dataset_item(0).to_string();
+
+		if (h512("b1698f829f90b35455804e5185d78f549fcb1bdce2bee006d4d7e68eb154b596be1427769eb1c3c3e93180c760af75f81d1023da6a0ffbe321c153a7c0103597")
+				!= ec1.calc_dataset_item(0)) {
+			return 1;
+		}
+	}
+
+	for (uint32_t i = 0; i < 30000; i++) {
+		h256 dag_seed((const uint8_t*)"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~", 32);
+		eth::EthashCache ec1(1024, dag_seed);
+//		io::cdebug << "0xb1698f829f90b35455804e5185d78f549fcb1bdce2bee006d4d7e68eb154b596be1427769eb1c3c3e93180c760af75f81d1023da6a0ffbe321c153a7c0103597";
+//		io::cdebug << ec1.calc_dataset_item(0).to_string();
+
+		if (h512("b1698f829f90b35455804e5185d78f549fcb1bdce2bee006d4d7e68eb154b596be1427769eb1c3c3e93180c760af75f81d1023da6a0ffbe321c153a7c0103597")
+				!= ec1.calc_dataset_item(0)) {
+			return 1;
+		}
+
+	} // Test destructor call; probably won't have enough ram otherwise.
+
 	h256 seed("372eca2454ead349c3df0ab5d00b0b706b23e49d469387db91811cee0358fc6d");
 
 	eth::EthashCache ec = eth::ethash::get_cache(22);

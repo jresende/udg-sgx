@@ -11,6 +11,7 @@
 #include "../io.hpp"
 #include "../byte_array.hpp"
 #include "../array.hpp"
+#include "boost/shared_ptr.hpp"
 #include <vector>
 #include <stddef.h>
 #include <stdint.h>
@@ -24,7 +25,7 @@ namespace udg {
 		};
 
 		struct FullNode : public Node {
-			udg::Array<udg::shared_ptr<Node>, 17> children;
+			udg::Array<boost::shared_ptr<Node>, 17> children;
 
 			h256 hash() const;
 		};
@@ -32,7 +33,7 @@ namespace udg {
 		struct ShortNode : public Node {
 			std::vector<uint8_t> key;
 
-			udg::shared_ptr<Node> val;
+			boost::shared_ptr<Node> val;
 			h256 hash() const;
 		};
 
@@ -50,9 +51,9 @@ namespace udg {
 
 
 		class MemoryTrie {
-			udg::shared_ptr<Node> root;
+			boost::shared_ptr<Node> root;
 
-			void insert(udg::shared_ptr<Node> node, const uint8_t prefix[], size_t prefix_len,
+			void insert(boost::shared_ptr<Node> node, const uint8_t prefix[], size_t prefix_len,
 					const uint8_t key[], size_t key_len, const uint8_t val[], size_t val_len);
 		public:
 

@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include "../crypto/keccak.hpp"
 #include "../byte_array.hpp"
-#include "../mem.hpp"
+#include "boost/shared_ptr.hpp"
 
 namespace udg {
 	namespace eth {
@@ -22,13 +22,13 @@ namespace udg {
 		};
 
 		class EthashCache {
-			std::vector<udg::shared_ptr<h512>> values;
+			std::vector<boost::shared_ptr<h512>> values;
 
 		public:
 			EthashCache() = default;
 			EthashCache(uint64_t cache_size, h256 seed);
 
-			udg::shared_ptr<h512> operator[](uint64_t index);
+			boost::shared_ptr<h512> operator[](uint64_t index);
 
 			h512 calc_dataset_item(uint64_t i);
 
