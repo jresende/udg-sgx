@@ -387,7 +387,7 @@ bool udg::eth::Transaction::validate() const {
 }
 
 bool udg::eth::Header::validate() const {
-	if (this->number != ZERO &&
+	if (this->number != uint256_t::ZERO &&
 			this->extra.size() > 32) {
 		return false;
 	}

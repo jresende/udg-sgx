@@ -3,10 +3,14 @@
 //
 
 #include "uint256.hpp"
+
 #include <algorithm>
 #include "hex_encode.hpp"
 
 using namespace udg;
+
+const uint256_t udg::uint256_t::ZERO = uint256_t(0);
+const uint256_t udg::uint256_t::ONE = uint256_t(1);
 
 udg::uint256_t::uint256_t(const uint64_t &inp) {
     std::fill(this->data, this->data + 4, 0);
@@ -30,6 +34,26 @@ bool udg::uint256_t::operator!=(const uint256_t &that) const {
 }
 
 bool udg::uint256_t::operator<(const uint256_t &that) const {
+
+	int highest_set_this = 0;
+	int highest_set_that = 0;
+
+	for (uint8_t i = 0; i < 4; i++) {
+		if (this->data[i] != 0) {
+			highest_set_this = i;
+		}
+
+		if (that.data[i] != 0) {
+			highest_set_that = i;
+		}
+	}
+
+	if (highest_set_this < highest_set_that) {
+		return true;
+	} else if (highest_set_that < highest_set_this) {
+		return false;
+	}
+
     for (uint_fast8_t i = 3; i != 0; i--) {
         if (this->data[i] < that.data[i]) { return true; }
     }
@@ -55,25 +79,25 @@ uint256_t udg::uint256_t::add(const uint256_t &that) const {
     bool carry = false;
 
     for (uint_fast8_t i = 0; i < 4; i++) {
-        out.data[i] = this->data[0] + that.data[0];
+        out.data[i] = this->data[i] + that.data[i];
 
         if (carry) {
             out.data[i]++;
         }
 
-        carry = out.data[i] < this->data[0];
+        carry = out.data[i] < this->data[i] || out.data[i] < that.data[i];
     }
 
     return out;
 }
 
 uint256_t& udg::uint256_t::increment() {
-    *this = *this + udg::ONE;
+    *this = *this + uint256_t::ONE;
     return *this;
 }
 
 uint256_t& udg::uint256_t::decrement() {
-    *this = *this - udg::ONE;
+    *this = *this - uint256_t::ONE;
     return *this;
 }
 

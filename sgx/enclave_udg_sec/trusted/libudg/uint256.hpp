@@ -23,6 +23,8 @@ namespace udg {
 
     public:
 
+        const static uint256_t ZERO;
+        const static uint256_t ONE;
         /**
          *
          * @param begin
@@ -94,9 +96,6 @@ namespace udg {
         void swap(uint256_t&);
 
     };
-
-    const static uint256_t ZERO = uint256_t(0);
-    const static uint256_t ONE = uint256_t(1);
 
 
 

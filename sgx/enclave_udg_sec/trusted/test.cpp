@@ -17,10 +17,10 @@
 #include "libudg/crypto/secp256k1/include/secp256k1_recovery.h"
 #include "libudg/crypto/secp256k1/include/secp256k1.h"
 #include "libudg/ethereum/rlp.hpp"
-#include "libudg/uint256.hpp"
 #include "libudg/time.hpp"
 #include "libudg/ethereum/blockchain.hpp"
 #include "libudg/ethereum/ethash.hpp"
+#include "libudg/BigInt.hpp"
 #include <algorithm>
 #include <stdint.h>
 #include <sgx_tcrypto.h>
@@ -202,14 +202,27 @@ int ecall_udg_test_uint256() {
 	io::cdebug << __PRETTY_FUNCTION__
 			<< EQ_LINE;
 
-	uint256_t test_a(0x1);
+//	uint256 bi = uint256(FixedSizedByteArray<32>(0xA5));
+	uint256 bi = "0xFFEEDDCCFFEEDDCC";
+	uint256 bi2;
+//	uint256 two = "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
+	uint256 two = "0xFFFFFFFFFFFFFFFFFFFFFFFFFF";
+//	uint256 two = "0xFFFF";
 
-	for (uint8_t i = 0; i < 128; i++) {
-		test_a = test_a + test_a;
-		io::cdebug << test_a.be_serialize().to_string();
-	}
+	uint256 r = uint256::random() >> 128;
 
-	io::cdebug << test_a.be_serialize().to_string();
+	io::cdebug << ((bi + bi2) == bi);
+
+	io::cdebug << bi.to_string();
+	io::cdebug << (bi << 120).to_string();
+	io::cdebug << (bi << 120 >> 80).to_string();
+	io::cdebug << ((bi << 120 >> 80) == (bi << 20 << 15 << 5));
+
+	io::cdebug << "Multiplication" << two.to_string();
+	io::cdebug << ((two) * (two)).to_string();
+	io::cdebug << r.to_string();
+
+
 
     return 0;
 }
@@ -353,8 +366,8 @@ int ecall_test_ethash() {
 int ecall_test() {
 	return
 			ecall_udg_test_rlp()
-			| ecall_udg_test_ECIES()
-			| ecall_udg_test_uint256()
-			| ecall_udg_test_byte_array()
-			| ecall_test_ethash();
+			|| ecall_udg_test_ECIES()
+			|| ecall_udg_test_uint256()
+			|| ecall_udg_test_byte_array()
+			|| ecall_test_ethash();
 }

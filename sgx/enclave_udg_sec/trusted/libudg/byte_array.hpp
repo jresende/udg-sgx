@@ -232,7 +232,7 @@ namespace udg {
 			return out;
 		}
 
-		FixedSizedByteArray& reverse() {
+		FixedSizedByteArray& reverse_in_place() {
 			std::reverse(this->begin(), this->end());
 			return *this;
 		}
@@ -256,7 +256,7 @@ namespace udg {
 		ByteArrayRef<N, M> slice_ref(uint64_t at);
 
 		template <unsigned long int M>
-		FixedSizedByteArray<M> slice(uint64_t at) {
+		FixedSizedByteArray<M> slice(uint64_t at) const {
 			if (at + M > N) {
 				throw std::invalid_argument("Slice cannot be larger than array.");
 			}
@@ -275,6 +275,11 @@ namespace udg {
 		template <typename T>
 		T reinterpret_at(uint64_t at) {
 			return this->slice_ref<sizeof(T)>(at).reinterpret<T>();
+		}
+
+		template <typename T>
+		T reinterpret_at(uint64_t at) const {
+			return this->slice<sizeof(T)>(at).reinterpret<T>();
 		}
 
 		template <typename T>
