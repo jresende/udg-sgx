@@ -10,6 +10,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include <map>
+#include "../io.hpp"
 
 using namespace udg;
 using namespace udg::eth;
@@ -192,19 +193,22 @@ EthashResult udg::eth::EthashCache::hashimoto(uint64_t full_size, h256 header_ha
 
 	h1024 mix;
 
-	for (uint32_t w = 0; w < MIX_WORDS; w++) {
-		auto c = s_mix.slice<WORD_BYTES>((w % NODE_WORDS) * WORD_BYTES);
-		std::copy(c.begin(), c.end(), mix.begin() + (w * WORD_BYTES));
-	}
+	std::copy(s_mix.begin(), s_mix.end(), mix.begin());
+	std::copy(s_mix.begin(), s_mix.end(), mix.begin() + h512::size);
+
+	io::cdebug << "Post copy mix"
+				<< mix.to_string();
 
 	uint32_t page_size = sizeof(uint32_t) * MIX_WORDS;
 	uint32_t num_full_pages = (uint32_t) (full_size / page_size);
 
+	io::cdebug << num_full_pages;
+
 	for (uint32_t i = 0; i < ACCESSES; i++) {
 		uint32_t index = ethash::fnv(
 				s_mix.reinterpret_at<uint32_t>(0) ^ i,
-				mix.reinterpret_at<uint32_t>((i % MIX_WORDS) * WORD_BYTES) % num_full_pages
-		);
+				mix.reinterpret_at<uint32_t>((i % MIX_WORDS) * WORD_BYTES)
+		) % num_full_pages;
 
 		for (uint32_t n = 0; n < MIX_NODES; n++) {
 			h512 dag_node = this->calc_dataset_item(index * MIX_NODES + n);
@@ -212,7 +216,7 @@ EthashResult udg::eth::EthashCache::hashimoto(uint64_t full_size, h256 header_ha
 			for (uint32_t w = 0; w < NODE_WORDS; w++) {
 				auto fnv_hash = FixedSizedByteArray<4>::from<uint32_t>(
 						fnv(
-								mix.reinterpret_at<uint32_t>(w * WORD_BYTES + n * 64),
+								mix.reinterpret_at<uint32_t>(w * WORD_BYTES + n * (h1024::size / 2)),
 								dag_node.reinterpret_at<uint32_t>(w * WORD_BYTES)
 						)
 				);
@@ -220,6 +224,9 @@ EthashResult udg::eth::EthashCache::hashimoto(uint64_t full_size, h256 header_ha
 				std::copy(fnv_hash.begin(), fnv_hash.end(), mix.begin() + (w * WORD_BYTES) + (n * 64));
 			}
 		}
+
+		io::cdebug << "Mix digest after access " << i
+							<< mix.to_string();
 
 	}
 

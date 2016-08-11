@@ -392,7 +392,7 @@ int ecall_test_ethash() {
 
 	eth::EthashCache ec = eth::ethash::get_cache(22);
 	auto res = ec.hashimoto(eth::ethash::get_full_size(22),
-			seed, FixedSizedByteArray<8>::from<uint64_t>(0x495732e0ed7a801c), true);
+			seed, FixedSizedByteArray<8>::from<uint64_t>(0x495732e0ed7a801c), false);
 
 	io::cdebug << "Should be:"
 			<< "0x00000b184f1fdd88bfd94c86c39e65db0c36144d5e43f745f722196e730cb614"
@@ -402,6 +402,8 @@ int ecall_test_ethash() {
 	if (res.result != h256("00000b184f1fdd88bfd94c86c39e65db0c36144d5e43f745f722196e730cb614")) {
 		io::cdebug << "Not working!";
 		return 1;
+	} else {
+		io::cdebug << "ETHASH IS FREAKIN' WORKING!";
 	}
 
 	return 0;
