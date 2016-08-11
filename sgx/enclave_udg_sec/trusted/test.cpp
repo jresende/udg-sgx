@@ -203,11 +203,14 @@ int ecall_udg_test_uint256() {
 			<< EQ_LINE;
 
 //	uint256 bi = uint256(FixedSizedByteArray<32>(0xA5));
-	uint256 bi = "0xFFEEDDCCFFEEDDCC";
+	uint256 bi("0xFFEEDDCCFFEEDDCC");
 	uint256 bi2;
-//	uint256 two = "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
-	uint256 two = "0xFFFFFFFFFFFFFFFFFFFFFFFFFF";
-//	uint256 two = "0xFFFF";
+//	uint256 two("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+	uint256 two("0x2");
+	uint256 four = 4;
+
+//	uint256 two("0xFFFF");
+
 
 	uint256 r = uint256::random() >> 128;
 
@@ -218,9 +221,49 @@ int ecall_udg_test_uint256() {
 	io::cdebug << (bi << 120 >> 80).to_string();
 	io::cdebug << ((bi << 120 >> 80) == (bi << 20 << 15 << 5));
 
+	uint256 one = 1;
+
+	io::cdebug << "LShift";
+	for (unsigned i = 0; i < 255; i++) {
+		io::cdebug << one.to_string();
+		one <<= 1;
+	}
+	io::cdebug << one.to_string();
+
+	io::cdebug << "LShift done";
+
+	io::cdebug << "RShift";
+		for (unsigned i = 0; i < 255; i++) {
+			io::cdebug << one.to_string();
+			one >>= 1;
+		}
+		io::cdebug << one.to_string();
+
+		io::cdebug << "RShift done";
+
 	io::cdebug << "Multiplication" << two.to_string();
 	io::cdebug << ((two) * (two)).to_string();
-	io::cdebug << r.to_string();
+	io::cdebug << "Rand";
+	for (uint8_t i = 0; i < 255; i++) {
+		io::cdebug << "Round: " << (unsigned) i;
+		r = uint256::random() >> 128;
+		io::cdebug << r.to_string();
+
+		auto mul = r * r;
+		auto div = mul / r;
+
+		io::cdebug << "Mult";
+		io::cdebug << mul.to_string();
+
+		io::cdebug << "Division";
+		io::cdebug << div.to_string();
+
+		if (div != r) {
+			return 1;
+		}
+	}
+
+
 
 
 
@@ -229,6 +272,7 @@ int ecall_udg_test_uint256() {
 
 #define BARRAY_SIZE 64
 int ecall_udg_test_byte_array() {
+
 
 	FixedSizedByteArray<BARRAY_SIZE> zarr;
 	auto rand = FixedSizedByteArray<BARRAY_SIZE>::random();

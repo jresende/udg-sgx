@@ -55,7 +55,7 @@ namespace udg {
 			this->_data.reverse_in_place();
 		}
 
-		BigInt(const char* str) {
+		explicit BigInt(const char* str) {
 			std::string cpy(str);
 			if (cpy.substr(0, 2).compare("0x") == 0) {
 				cpy = cpy.substr(2);
@@ -93,13 +93,17 @@ namespace udg {
 			return _data.template reinterpret<uint64_t>();
 		}
 
+		bool to_bool() const {
+			return (*this != BigInt::ZERO);
+		}
+
 		template <unsigned M>
 		operator BigInt<M>() const {
 			if (M > BigInt::bits) {
-				io::cdebug << "Bigger";
+//				io::cdebug << "Bigger";
 				return BigInt<M>(this->to_string());
 			} else {
-				io::cdebug << "Smaller";
+//				io::cdebug << "Smaller";
 				return BigInt<M>(_data.template slice<BigInt<M>::size>(0));
 			}
 		}
@@ -178,9 +182,10 @@ namespace udg {
 		}
 
 		BigInt operator -(const BigInt& that) const {
-			return *this + (-that);
+			return *this + -(that);
 		}
 
+#ifdef PEASANT_MULT
 		BigInt operator *(const BigInt& that) const {
 
 			BigInt<BigInt::bits> smallest = (*this < that) ? *this : that;
@@ -206,12 +211,106 @@ namespace udg {
 
 			return total;
 		}
+#else
+		BigInt operator *(const BigInt& that) const {
 
-		BigInt operator /(const BigInt& that) const;
+			BigInt<BigInt::bits> total;
+			BigInt<BigInt::bits> temp;
+
+			for (unsigned i = 0; i < BigInt::dwords; i++) {
+				for (unsigned j = 0; j + i < BigInt::dwords; j++) {
+
+					uint64_t word_i = this->_data.template reinterpret_at<uint32_t>(i * 4);
+					uint64_t word_j = that._data.template reinterpret_at<uint32_t>(j * 4);
+					uint64_t word_o = word_i * word_j;
+
+					temp._data.clear();
+					if (j + i != BigInt::dwords - 1) {
+						temp._data.template slice_ref<8>((i + j) * 4) |= FixedSizedByteArray<8>::template from<uint64_t>(word_o);
+					} else {
+						temp._data.template slice_ref<4>((i + j) * 4) |= FixedSizedByteArray<4>::template from<uint32_t>((uint32_t)word_o);
+					}
+
+//					io::cdebug << i << j;
+//					io::cdebug << "Temporaries";
+//					io::cdebug << BigInt<64>(word_i).to_string()
+//							<< BigInt<64>(word_j).to_string()
+//							<< BigInt<64>(word_o).to_string();
+//
+//					io::cdebug << temp.to_string();
+
+
+					total += temp;
+
+				}
+			}
+
+			return total;
+		}
+#endif
+
+		static void divmod(BigInt dividend, BigInt divisor, BigInt& quotient, BigInt& remainder) {
+			if (divisor == BigInt::ZERO) {
+				throw std::invalid_argument("Division by zero.");
+			} else if (divisor > dividend) {
+				quotient = 0;
+				remainder = dividend;
+				return;
+			} else if (dividend == divisor) {
+				quotient = 1;
+				remainder = 0;
+				return;
+			}
+
+			for (unsigned i = BigInt::bits; i > 0; i--) {
+				auto n = i - 1;
+				remainder<<= 1;
+				remainder.set_bit(0, dividend.is_bit_set(n) ? 1 : 0);
+				if (remainder >= divisor) {
+					remainder -= divisor;
+					quotient.set_bit(n, 1);
+				}
+			}
+
+			return;
+		}
+
+		static BigInt pow(BigInt x, unsigned n) {
+			if (x > BigInt::bits) {
+				return BigInt::ZERO;
+			} else if (x == 0) {
+				return BigInt::ONE;
+			}
+
+			BigInt y = 1;
+
+			while (n > 1) {
+				if (n & 1) {
+					y *= x;
+					x *= x;
+					n = (n - 1) / 2;
+				} else {
+					x *= x;
+					n /= 2;
+				}
+			}
+
+			return x * y;
+
+		}
+
+		BigInt pow(unsigned n) const {
+			return BigInt::pow(*this, n);
+		}
+
+		BigInt operator /(const BigInt& that) const {
+			BigInt q, r;
+			BigInt::divmod(*this, that, q, r);
+			return q;
+		}
 
 		BigInt operator <<(uint64_t num) const {
 			if (num >= BigInt::bits) {
-				io::cdebug << "Shortcut";
 				return BigInt();
 			} else if (num == 0) {
 				return BigInt(*this);
@@ -235,7 +334,6 @@ namespace udg {
 
 		BigInt operator >>(uint64_t num) const {
 			if (num >= BigInt::bits) {
-				io::cdebug << "Shortcut";
 				return BigInt();
 			} else if (num == 0) {
 				return BigInt(*this);
@@ -276,7 +374,11 @@ namespace udg {
 			return copy;
 		}
 
-		BigInt operator %(const BigInt& that) const;
+		BigInt operator %(const BigInt& that) const {
+			BigInt q, r;
+			BigInt::divmod(*this, that, q, r);
+			return r;
+		}
 
 		BigInt& operator +=(const BigInt& that) {
 			*this = *this + that;
@@ -349,7 +451,7 @@ namespace udg {
 		}
 
 		BigInt operator -() const {
-			return (~*this)++;
+			return (~(*this)) + 1;
 		}
 
 		BigInt operator ~() const {
