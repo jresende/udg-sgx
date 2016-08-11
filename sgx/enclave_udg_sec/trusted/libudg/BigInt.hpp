@@ -98,7 +98,7 @@ namespace udg {
 
 		BigInt& operator=(const BigInt&) = default;
 
-		FixedSizedByteArray<BigInt::size> get_data() {
+		FixedSizedByteArray<BigInt::size> get_data() const {
 			return this->_data;
 		}
 
