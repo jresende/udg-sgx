@@ -35,6 +35,8 @@ namespace udg {
 			EthashResult hashimoto(uint64_t full_size, h256 header_hash, FixedSizedByteArray<8> nonce,
 					bool be_nonce = true);
 
+			void invalidate();
+
 		};
 
 		namespace ethash {

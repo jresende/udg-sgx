@@ -196,13 +196,13 @@ EthashResult udg::eth::EthashCache::hashimoto(uint64_t full_size, h256 header_ha
 	std::copy(s_mix.begin(), s_mix.end(), mix.begin());
 	std::copy(s_mix.begin(), s_mix.end(), mix.begin() + h512::size);
 
-	io::cdebug << "Post copy mix"
-				<< mix.to_string();
+//	io::cdebug << "Post copy mix"
+//				<< mix.to_string();
 
 	uint32_t page_size = sizeof(uint32_t) * MIX_WORDS;
 	uint32_t num_full_pages = (uint32_t) (full_size / page_size);
 
-	io::cdebug << num_full_pages;
+//	io::cdebug << num_full_pages;
 
 	for (uint32_t i = 0; i < ACCESSES; i++) {
 		uint32_t index = ethash::fnv(
@@ -225,8 +225,8 @@ EthashResult udg::eth::EthashCache::hashimoto(uint64_t full_size, h256 header_ha
 			}
 		}
 
-		io::cdebug << "Mix digest after access " << i
-							<< mix.to_string();
+//		io::cdebug << "Mix digest after access " << i
+//							<< mix.to_string();
 
 	}
 
@@ -257,9 +257,14 @@ EthashCache udg::eth::ethash::get_cache(uint64_t block_number) {
 	if (ethash_cache_cache.first == (block_number / EPOCH_LENGTH)) {
 		return ethash_cache_cache.second;
 	} else {
+		ethash_cache_cache.second.invalidate();
 		EthashCache ret(ethash::get_cache_size(block_number), ethash::get_seedhash(block_number));
 		ethash_cache_cache.first = block_number / EPOCH_LENGTH;
 		ethash_cache_cache.second = ret;
 		return ret;
 	}
+}
+
+void udg::eth::EthashCache::invalidate() {
+	this->values.clear();
 }

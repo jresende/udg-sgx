@@ -33,7 +33,11 @@ using namespace udg::rlp;
 
 int ecall_udg_test_rlp() {
 
-    io::cdebug << "Current time: " << get_time();
+//    io::cdebug << "Current time: " << get_time();
+
+	io::cdebug << EQ_LINE;
+	io::cdebug << __PRETTY_FUNCTION__
+			<< EQ_LINE;
 
     std::vector<std::string> ss;
     ss.push_back("a");
@@ -106,10 +110,20 @@ int ecall_udg_test_rlp() {
 
     io::cout << simple.to_string() << "\n";
 
+    if (!simple.validate()) {
+    	io::cdebug << "Failed to validate block";
+    	return 1;
+    }
+
     return 0;
 }
 
 int ecall_udg_test_ECIES() {
+
+	io::cdebug << EQ_LINE;
+	io::cdebug << __PRETTY_FUNCTION__
+			<< EQ_LINE;
+
 #ifndef NDEBUG
     udg::crypto::load_or_gen_keys();
     const KeyPair& kp1 = udg::crypto::get_keys();
@@ -165,8 +179,12 @@ int ecall_udg_test_ECIES() {
 
 int ecall_udg_test_RLPxHandshake() {
 
-    io::cdebug << "Current time: " << get_time();
+//    io::cdebug << "Current time: " << get_time();
     io::cdebug << "RLPxHandshake Test";
+
+    io::cdebug << EQ_LINE;
+	io::cdebug << __PRETTY_FUNCTION__
+			<< EQ_LINE;
 
 #ifndef NDEBUG
     udg::crypto::load_or_gen_keys();
@@ -225,7 +243,7 @@ int ecall_udg_test_uint256() {
 
 	io::cdebug << "LShift";
 	for (unsigned i = 0; i < 255; i++) {
-		io::cdebug << one.to_string();
+//		io::cdebug << one.to_string();
 		one <<= 1;
 	}
 	io::cdebug << one.to_string();
@@ -233,30 +251,30 @@ int ecall_udg_test_uint256() {
 	io::cdebug << "LShift done";
 
 	io::cdebug << "RShift";
-		for (unsigned i = 0; i < 255; i++) {
-			io::cdebug << one.to_string();
-			one >>= 1;
-		}
-		io::cdebug << one.to_string();
+	for (unsigned i = 0; i < 255; i++) {
+//			io::cdebug << one.to_string();
+		one >>= 1;
+	}
+	io::cdebug << one.to_string();
 
-		io::cdebug << "RShift done";
+	io::cdebug << "RShift done";
 
 	io::cdebug << "Multiplication" << two.to_string();
 	io::cdebug << ((two) * (two)).to_string();
 	io::cdebug << "Rand";
 	for (uint8_t i = 0; i < 255; i++) {
-		io::cdebug << "Round: " << (unsigned) i;
+//		io::cdebug << "Round: " << (unsigned) i;
 		r = uint256::random() >> 128;
-		io::cdebug << r.to_string();
+//		io::cdebug << r.to_string();
 
 		auto mul = r * r;
 		auto div = mul / r;
 
-		io::cdebug << "Mult";
-		io::cdebug << mul.to_string();
-
-		io::cdebug << "Division";
-		io::cdebug << div.to_string();
+//		io::cdebug << "Mult";
+//		io::cdebug << mul.to_string();
+//
+//		io::cdebug << "Division";
+//		io::cdebug << div.to_string();
 
 		if (div != r) {
 			return 1;
@@ -273,6 +291,10 @@ int ecall_udg_test_uint256() {
 #define BARRAY_SIZE 64
 int ecall_udg_test_byte_array() {
 
+
+	io::cdebug << EQ_LINE;
+	io::cdebug << __PRETTY_FUNCTION__
+			<< EQ_LINE;
 
 	FixedSizedByteArray<BARRAY_SIZE> zarr;
 	auto rand = FixedSizedByteArray<BARRAY_SIZE>::random();
@@ -324,9 +346,9 @@ int ecall_udg_test_byte_array() {
 	rand = FixedSizedByteArray<BARRAY_SIZE>::random();
 
 	io::cdebug << "Slices";
-	io::cdebug << "First section is making sure slices and ref slices work similarly."
-			<< "Second part acts like this:";
-	io::cdebug << "XOR'd byte reference slice: first is slice view,"
+//	io::cdebug << "First section is making sure slices and ref slices work similarly."
+//			<< "Second part acts like this:";
+//	io::cdebug << "XOR'd byte reference slice: first is slice view,"
 					"\nsecond is slice pre-op, third is the real backing array.";
 
 	for (uint64_t i = 0; i < BARRAY_SIZE / 8; i++) {
@@ -345,9 +367,9 @@ int ecall_udg_test_byte_array() {
 
 		io::cdebug << "Part two.";
 
-		io::cdebug << bar_a.to_string();
-		io::cdebug << actual_slice.to_string();
-		io::cdebug << rand.slice<8>(i*8).to_string();
+//		io::cdebug << bar_a.to_string();
+//		io::cdebug << actual_slice.to_string();
+//		io::cdebug << rand.slice<8>(i*8).to_string();
 
 	}
 

@@ -6,7 +6,7 @@
 #define UDG_BLOCKCHAIN_HPP
 
 #include "../byte_array.hpp"
-#include "../uint256.hpp"
+#include "../BigInt.hpp"
 #include "../crypto/ecc.hpp"
 #include "rlp.hpp"
 #include <stdint.h>
@@ -22,14 +22,14 @@ namespace udg {
 
 		struct Transaction : public rlp::RLPConvertable {
 			FixedSizedByteArray<8> account_nonce;
-			uint256_t price;
-			uint256_t gas_limit;
+			uint256 price;
+			uint256 gas_limit;
 			Address recipient;
-			uint256_t amount;
+			uint256 amount;
 			std::vector<uint8_t> payload;
 			uint8_t V;
-			uint256_t R;
-			uint256_t S;
+			uint256 R;
+			uint256 S;
 
 			h256 hash() const;
 			uint64_t size() const;
@@ -56,11 +56,11 @@ namespace udg {
 			h256 tx_hash;
 			h256 receipt_hash;
 			Bloom bloom;
-			uint256_t difficulty;
-			uint256_t number;
-			uint256_t gas_limit;
-			uint256_t gas_used;
-			uint256_t time;
+			uint256 difficulty;
+			uint256 number;
+			uint256 gas_limit;
+			uint256 gas_used;
+			uint256 time;
 			std::vector<uint8_t> extra;
 			h256 mix_digest;
 			BlockNonce nonce;
@@ -72,6 +72,7 @@ namespace udg {
 			Header(const std::vector<rlp::RLPData>& from_rlp);
 
 			bool validate() const;
+			h256 hash_no_nonce() const;
 
 			rlp::rlpvec to_rlp() const;
 			std::string to_string() const;

@@ -73,6 +73,19 @@ namespace udg {
 			this->_data.reverse_in_place();
 		}
 
+		template <typename BidirectionalIterator>
+		BigInt(BidirectionalIterator begin, BidirectionalIterator end, bool big_endian=false) {
+			if (std::distance(begin, end) > BigInt::size) {
+				throw std::invalid_argument("Iterators too big to instantiate BigInt");
+			}
+
+			if (big_endian) {
+				std::reverse_copy(begin, end, this->_data.begin());
+			} else {
+				std::copy(begin, end, this->_data.begin());
+			}
+		}
+
 		BigInt(uint64_t start) {
 			this->_data = FixedSizedByteArray<BigInt::size>::template from<uint64_t>(start);
 		}
@@ -487,7 +500,7 @@ namespace udg {
 		}
 
 		rlp::rlpvec to_rlp() const {
-			return this->_data.to_rlp();
+			return this->_data.reverse().to_rlp();
 		}
 
 	};

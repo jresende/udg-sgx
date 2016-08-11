@@ -10,7 +10,7 @@
 #include <vector>
 #include <algorithm>
 #include "intconv.hpp"
-#include "uint256.hpp"
+#include "BigInt.hpp"
 
 namespace udg {
 

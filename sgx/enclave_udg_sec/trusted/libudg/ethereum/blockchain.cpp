@@ -52,14 +52,14 @@ udg::eth::Transaction::Transaction(const std::vector<RLPData>& from_rlp) {
 	from_rlp[8].retrieve_bytes(s);
 
 	this->account_nonce = FixedSizedByteArray<8>(&acc_non[0], acc_non.size(), true);
-	this->price = uint256_t(price.begin(), price.end());
-	this->gas_limit = uint256_t(gas_limit.begin(), gas_limit.end());
+	this->price = uint256(price.begin(), price.end(), true);
+	this->gas_limit = uint256(gas_limit.begin(), gas_limit.end(), true);
 	this->recipient = Address(to_addr.begin(), to_addr.end());
-	this->amount = uint256_t(amount.begin(), amount.begin());
+	this->amount = uint256(amount.begin(), amount.begin(), true);
 	this->payload = std::vector<uint8_t>(payload.begin(), payload.end());
 	this->V = v[0];
-	this->R = uint256_t(r.begin(), r.end());
-	this->S = uint256_t(s.begin(), s.end());
+	this->R = uint256(r.begin(), r.end(), true);
+	this->S = uint256(s.begin(), s.end(), true);
 }
 
 Signature udg::eth::Transaction::sig() const {
@@ -239,11 +239,11 @@ udg::eth::Header::Header(const std::vector<rlp::RLPData>& from_rlp) {
 	this->tx_hash = h256(txhash.begin(), txhash.end());
 	this->receipt_hash = h256(receipt_hash.begin(), receipt_hash.end());
 	this->bloom = Bloom(bloom.begin(), bloom.end());
-	this->difficulty = uint256_t(difficulty.begin(), difficulty.end());
-	this->number = uint256_t(number.begin(), number.end());
-	this->gas_limit = uint256_t(gas_limit.begin(), gas_limit.end());
-	this->gas_used = uint256_t(gas_used.begin(), gas_used.end());
-	this->time = uint256_t(time.begin(), time.end());
+	this->difficulty = uint256(difficulty.begin(), difficulty.end(), true);
+	this->number = uint256(number.begin(), number.end(), true);
+	this->gas_limit = uint256(gas_limit.begin(), gas_limit.end(), true);
+	this->gas_used = uint256(gas_used.begin(), gas_used.end(), true);
+	this->time = uint256(time.begin(), time.end(), true);
 	this->extra = std::vector<uint8_t>(extra.begin(), extra.end());
 	this->mix_digest = h256(mix_digest.begin(), mix_digest.end());
 	this->nonce = BlockNonce(nonce.begin(), nonce.end());
@@ -387,29 +387,89 @@ bool udg::eth::Transaction::validate() const {
 }
 
 bool udg::eth::Header::validate() const {
-	if (this->number != uint256_t::ZERO &&
+	if (this->number != uint256::ZERO &&
 			this->extra.size() > 32) {
 		return false;
 	}
 
-	uint64_t blk_num = (uint64_t)this->number;
+	uint64_t blk_num = this->number.to_uint64_t();
+
+	if (this->gas_limit < this->gas_used) {
+		return false;
+	}
 
 	// Need to validate PoW
 	EthashCache ecache = ethash::get_cache(blk_num);
 	EthashResult res = ecache.hashimoto(ethash::get_full_size(blk_num),
-			rlp_keccak256(*this),
+			this->hash_no_nonce(),
 			this->nonce,
 			true);
 
+	io::cdebug << "Ethash Result:" << res.result.to_string();
 	if (res.mix_digest != this->mix_digest) {
 		io::cout << "Invalid proof of work.\nGiven mix_digest:\n"
 				<< this->mix_digest.to_string() << "\n"
 				<< "Proper mix_digest:\n"
-				<< res.mix_digest.to_string() << "\n";
+				<< res.mix_digest.to_string() << "\n"
+				<< "Result: "
+				<< res.result.to_string() << "\n";
 		return false;
 	}
 
+
+	// Validate difficulty
+
+	uint256 target = (uint256) (uint320::pow(2, 256) / ((uint320)this->difficulty));
+	io::cdebug << "Target: " << target.to_string();
+	uint256 result(res.result.begin(), res.result.end(), true);
+	if (result > target) {
+		io::cout << "Invalid hash result!\n"
+				<< "Expected: " << target.to_string() << "\n"
+				<< "Actual  : " << result.to_string() << "\n";
+		return false;
+	}
+
+
+
+
 	return true;
+}
+
+h256 udg::eth::Header::hash_no_nonce() const {
+	rlpvec parent_hash = this->parent_hash.to_rlp_with_zeroes();
+	rlpvec uncle_hash = this->uncle_hash.to_rlp_with_zeroes();
+	rlpvec coinbase = this->coinbase.to_rlp_with_zeroes();
+	rlpvec root = this->root.to_rlp_with_zeroes();
+	rlpvec txhash = this->tx_hash.to_rlp_with_zeroes();
+	rlpvec receipt_hash = this->receipt_hash.to_rlp_with_zeroes();
+	rlpvec bloom = this->bloom.to_rlp_with_zeroes();
+	rlpvec difficulty = this->difficulty.be_serialize().to_rlp();
+	rlpvec number = this->number.be_serialize().to_rlp();
+	rlpvec gas_limit = this->gas_limit.be_serialize().to_rlp();
+	rlpvec gas_used = this->gas_used.be_serialize().to_rlp();
+	rlpvec time = this->time.be_serialize().to_rlp();
+	rlpvec extra = rlp::to_rlp(this->extra);
+
+	std::vector<rlpvec> lst;
+	lst.push_back(parent_hash);
+	lst.push_back(uncle_hash);
+	lst.push_back(coinbase);
+	lst.push_back(root);
+	lst.push_back(txhash);
+	lst.push_back(receipt_hash);
+	lst.push_back(bloom);
+	lst.push_back(difficulty);
+	lst.push_back(number);
+	lst.push_back(gas_limit);
+	lst.push_back(gas_used);
+	lst.push_back(time);
+	lst.push_back(extra);
+
+	auto x = rlp::to_rlp_list(lst);
+	keccak256 ctxt;
+	ctxt.update(&x[0], x.size());
+	ctxt.finalize();
+	return ctxt.get_digest();
 }
 
 bool udg::eth::Block::validate() const {
@@ -446,29 +506,29 @@ bool udg::eth::Block::validate() const {
 
 	// Validate hashes.
 
-	//Tx Hash
-	{
-		std::vector<rlpvec> txns;
-		std::transform(this->transactions.begin(),
-				this->transactions.end(),
-				std::back_insert_iterator<std::vector<rlpvec> >(txns),
-				[](const Transaction& x) -> rlpvec {return x.to_rlp();});
-
-		rlpvec txns_rlp = rlp::to_rlp_list(txns);
-		h256 txns_sha;
-
-		keccak256 ctxt;
-		ctxt.update(&txns_rlp[0], txns_rlp.size());
-		ctxt.finalize();
-		txns_sha = ctxt.get_digest();
-
-		if (txns_sha != this->header.tx_hash) {
-			io::cout << "Transaction hash != Header Transaction hash\n";
-			io::cout << txns_sha.to_string() << "\n";
-			io::cout << this->header.tx_hash.to_string() << "\n";
-			return false;
-		}
-	}
+	//Tx Hash TODO: not actually working. Fix this next. Needs the TRIEHASH, not regular has
+//	{
+//		std::vector<rlpvec> txns;
+//		std::transform(this->transactions.begin(),
+//				this->transactions.end(),
+//				std::back_insert_iterator<std::vector<rlpvec> >(txns),
+//				[](const Transaction& x) -> rlpvec {return x.to_rlp();});
+//
+//		rlpvec txns_rlp = rlp::to_rlp_list(txns);
+//		h256 txns_sha;
+//
+//		keccak256 ctxt;
+//		ctxt.update(&txns_rlp[0], txns_rlp.size());
+//		ctxt.finalize();
+//		txns_sha = ctxt.get_digest();
+//
+//		if (txns_sha != this->header.tx_hash) {
+//			io::cout << "Transaction hash != Header Transaction hash\n";
+//			io::cout << txns_sha.to_string() << "\n";
+//			io::cout << this->header.tx_hash.to_string() << "\n";
+//			return false;
+//		}
+//	}
 
 	{
 		std::vector<rlpvec> uncs;
