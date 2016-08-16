@@ -12,58 +12,113 @@
 #include "../byte_array.hpp"
 #include "../array.hpp"
 #include "boost/shared_ptr.hpp"
+#include "rlp.hpp"
 #include <vector>
 #include <stddef.h>
 #include <stdint.h>
+#include <map>
 
 namespace udg {
 	namespace eth {
 
-		struct Node {
-			virtual h256 hash() const = 0;
+		struct Node: public rlp::RLPConvertable {
 			virtual ~Node() {};
 		};
 
-		struct FullNode : public Node {
-			udg::Array<boost::shared_ptr<Node>, 17> children;
+		using node_ptr = boost::shared_ptr<Node>;
 
-			h256 hash() const;
+		struct FullNode : public Node {
+			bool dirty;
+			udg::Array<node_ptr, 17> children;
+			rlp::rlpvec to_rlp() const;
+			FullNode(bool dirty) : dirty(dirty) {}
 		};
 
 		struct ShortNode : public Node {
+			bool dirty;
 			std::vector<uint8_t> key;
 
-			boost::shared_ptr<Node> val;
-			h256 hash() const;
+			node_ptr val;
+
+			ShortNode(std::vector<uint8_t> key, node_ptr val, bool dirty)
+				: key(key), val(val), dirty(dirty) {}
+			rlp::rlpvec to_rlp() const;
 		};
 
-		class Trie {
-			io::DBSession db;
-			h256 root_hash;
-		public:
-			Trie(const char* db_file);
-			Trie(const char* db_file, h256 root_hash);
+		struct HashNode : public Node {
+			h256 hash;
 
-
-
+			HashNode() {}
+			HashNode(const h256& h) : hash(h) {}
+			rlp::rlpvec to_rlp() const;
 		};
 
+		struct ValueNode : public Node {
+			std::vector<uint8_t> data;
 
+			ValueNode() {}
+			template <typename II>
+			ValueNode(II begin, II end) : data(begin, end) {}
+			rlp::rlpvec to_rlp() const;
+		};
 
-		class MemoryTrie {
-			boost::shared_ptr<Node> root;
+		struct TrieReturn {
+			bool dirty;
+			node_ptr node;
 
-			void insert(boost::shared_ptr<Node> node, const uint8_t prefix[], size_t prefix_len,
-					const uint8_t key[], size_t key_len, const uint8_t val[], size_t val_len);
+			TrieReturn(bool dirty, node_ptr node) : dirty(dirty), node(node) {}
+		};
+
+		struct HashReturn {
+			node_ptr n1;
+			node_ptr n2;
+			h256 h;
+
+			HashReturn(node_ptr n1, node_ptr n2) : n1(n1), n2(n2) {}
+			HashReturn(node_ptr n1, node_ptr n2, h256 h) : n1(n1), n2(n2), h(h) {}
+		};
+
+		class MemoryTrie : public rlp::RLPConvertable {
+
+			std::map<h256, node_ptr> data; // Store in memory instead of file
+			node_ptr root;
+
+			TrieReturn insert(node_ptr node, const std::vector<uint8_t>& prefix,
+					const std::vector<uint8_t>& key, node_ptr val);
+
+			TrieReturn deleet(node_ptr node, const std::vector<uint8_t>& prefix,
+					const std::vector<uint8_t>& key);
+
+			node_ptr resolve_hash(
+					h256 h,
+					const std::vector<uint8_t>& prefix,
+					const std::vector<uint8_t>& key
+					);
+
+			node_ptr resolve(boost::shared_ptr<Node> node,
+					const std::vector<uint8_t>& prefix,
+					const std::vector<uint8_t>& key);
+
+			h256 _hash_state;
+
+			HashReturn hash(node_ptr node);
+			HashReturn hash_root();
+			HashReturn hash_children(node_ptr original);
+			node_ptr store(node_ptr);
+
+			rlp::rlpvec rlpify(node_ptr node);
+
 		public:
 
-			h256 hash() const;
-			void update(const uint8_t key[], size_t key_len, const uint8_t val[], size_t val_len);
+			h256 hash();
+			void update(const std::vector<uint8_t>& key, const std::vector<uint8_t>& val);
+			void update(const std::string& key, const std::string& val);
+
+			rlp::rlpvec to_rlp();
+			rlp::rlpvec to_rlp() const;
 
 		};
 	}
 }
-
-
 
 #endif /* SGX_ENCLAVE_UDG_SEC_TRUSTED_LIBUDG_ETHEREUM_TRIE_HPP_ */

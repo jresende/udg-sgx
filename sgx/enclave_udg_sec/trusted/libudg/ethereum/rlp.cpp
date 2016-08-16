@@ -335,22 +335,3 @@ std::string udg::rlp::RLPConvertable::to_rlp_str() const {
 	d.parse_bytes(r.begin(), r.end());
 	return d.to_hex_string();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

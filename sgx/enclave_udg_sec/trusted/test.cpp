@@ -21,6 +21,7 @@
 #include "libudg/ethereum/blockchain.hpp"
 #include "libudg/ethereum/ethash.hpp"
 #include "libudg/BigInt.hpp"
+#include "libudg/ethereum/trie.hpp"
 #include <algorithm>
 #include <stdint.h>
 #include <sgx_tcrypto.h>
@@ -28,6 +29,7 @@
 using namespace udg;
 using namespace udg::crypto;
 using namespace udg::rlp;
+using namespace udg::eth;
 
 #define EQ_LINE "==================================="
 
@@ -431,11 +433,37 @@ int ecall_test_ethash() {
 	return 0;
 }
 
+int ecall_udg_test_trie() {
+
+	io::cdebug << EQ_LINE;
+	io::cdebug << __PRETTY_FUNCTION__
+			<< EQ_LINE;
+
+	MemoryTrie trie;
+
+	io::cdebug << "Empty trie hash:"
+			<< trie.hash().to_string()
+			<< trie.to_rlp_str();
+
+	trie.update("\x01\x01\x02", "hello");
+
+	io::cdebug << "Trie state"
+			<< trie.to_rlp_str()
+			<< trie.hash().to_string()
+			<< "Should be:"
+			<< "0x15da97c42b7ed2e1c0c8dab6a6d7e3d9dc0a75580bbc4f1f29c33996d1415dcc";
+
+	return 0;
+}
+
 int ecall_test() {
 	return
-			ecall_udg_test_rlp()
+			0
+//			|| ecall_udg_test_rlp()
 			|| ecall_udg_test_ECIES()
 			|| ecall_udg_test_uint256()
 			|| ecall_udg_test_byte_array()
-			|| ecall_test_ethash();
+			|| ecall_udg_test_trie()
+//			|| ecall_test_ethash()
+			;
 }

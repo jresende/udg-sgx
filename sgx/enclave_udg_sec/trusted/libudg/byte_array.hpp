@@ -198,32 +198,49 @@ namespace udg {
 			memset(this->_data, 0, N);
 		}
 
-		bool operator>(const FixedSizedByteArray& that) const {
-			for (uint8_t i = 0; i < N; i++) {
-				if (this->_data[i] > that[i]) {
+		bool operator >(const FixedSizedByteArray& that) const {
+			unsigned highest_this = 0;
+			unsigned highest_that = 0;
+
+			auto rev = this->reverse();
+			auto that_rev = that.reverse();
+
+			for (unsigned i = 0; i < FixedSizedByteArray::size; i++) {
+				if (rev._data[i] != 0) {
+					highest_this = i;
+				}
+
+				if (rev._data[i] != 0) {
+					highest_that = i;
+				}
+			}
+
+			if (highest_this > highest_that) {
+				return true;
+			} else if (highest_this < highest_that) {
+				return false;
+			}
+
+			for (long int i = FixedSizedByteArray::size - 1; i > 0; i--) {
+				if (rev._data[i] > that_rev._data[i]) {
 					return true;
+				} else if (rev._data[i] < that_rev._data[i]) {
+					return false;
 				}
 			}
 
 			return false;
 		}
-
-		bool operator<(const FixedSizedByteArray& that) const {
-			for (uint8_t i = 0; i < N; i++) {
-				if (this->_data[i] < that[i]) {
-					return true;
-				}
-			}
-
-			return false;
+		bool operator <(const FixedSizedByteArray& that) const {
+			return (*this != that) && !(*this > that);
 		}
 
-		bool operator>=(const FixedSizedByteArray& that) const {
-			return !(*this < that);
-		}
-
-		bool operator<=(const FixedSizedByteArray& that) const {
+		bool operator <=(const FixedSizedByteArray& that) const {
 			return !(*this > that);
+		}
+
+		bool operator >=(const FixedSizedByteArray& that) const {
+			return !(*this < that);
 		}
 
 		static FixedSizedByteArray random() {
