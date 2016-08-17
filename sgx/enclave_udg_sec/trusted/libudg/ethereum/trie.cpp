@@ -175,6 +175,7 @@ static std::string node_str(node_ptr node) {
 		out.append("Short {");
 		out.append(udg::hex_encode(short_node->key)).append(" : ");
 		out.append(node_str(short_node->val)).append("}");
+		return out;
 	}
 
 	auto full_node = boost::dynamic_pointer_cast<FullNode>(node);
@@ -184,20 +185,24 @@ static std::string node_str(node_ptr node) {
 			out.append(node_str(full_node->children[i])).append("\n");
 		}
 		out.append("}");
+		return out;
 	}
 
 	if (!node) {
 		out.append("nil");
+		return out;
 	}
 
 	auto hash_node = boost::dynamic_pointer_cast<HashNode>(node);
 	if (hash_node) {
 		out.append("Hash {").append(hash_node->hash.to_string()).append("}");
+		return out;
 	}
 
 	auto val_node = boost::dynamic_pointer_cast<ValueNode>(node);
 	if (val_node) {
 		out.append("Value {").append(udg::hex_encode(val_node->data)).append("}");
+		return out;
 	}
 
 	return out;
@@ -215,7 +220,8 @@ TrieReturn udg::eth::MemoryTrie::insert(
 			<< node_str(value)
 			<< "with prefix/key:"
 			<< udg::hex_encode(prefix)
-			<< udg::hex_encode(key);
+			<< udg::hex_encode(key)
+			<< "\n";
 
 	if (key.size() == 0) {
 		auto val_node = boost::dynamic_pointer_cast<ValueNode>(node);
@@ -637,5 +643,7 @@ rlp::rlpvec udg::eth::ValueNode::to_rlp() const {
 
 void udg::eth::MemoryTrie::update(const std::string& key,
         const std::string& val) {
+	trie_debug << "Entering update with key"
+			<< udg::hex_encode(key);
 	this->update(std::vector<uint8_t>(key.begin(), key.end()), std::vector<uint8_t>(val.begin(), val.end()));
 }

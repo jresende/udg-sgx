@@ -451,7 +451,7 @@ int ecall_udg_test_trie() {
 	trie.update(udg::hex_decode("010102"), udg::hex_decode("68656c6c6f"));
 
 	io::cdebug << "Trie state"
-			<< trie.to_rlp_str()
+//			<< trie.to_rlp_str()
 			<< trie.hash().to_string()
 			<< "Should be:"
 			<< "0x2de7536c3e967ddb81be5ec40236162d89c0aa2dc3567ae28a9c1afab20da94b";
@@ -459,10 +459,17 @@ int ecall_udg_test_trie() {
 	io::cdebug << "Bigger trie.";
 
 	trie.update(udg::hex_decode("010100"), udg::hex_decode("68656c6c6c"));
+
+	io::cdebug << "Trie state"
+//			<< trie.to_rlp_str()
+			<< trie.hash().to_string()
+			<< "Should be:"
+			<< "0xaea8c6d32754557f443418d5d2e3b5cfcfb104577951b334dcbb027b06e5ba17";
+
 	trie.update(udg::hex_decode("000102"), udg::hex_decode("68656c6d6f"));
 
 	io::cdebug << "Trie state"
-		<< trie.to_rlp_str()
+//		<< trie.to_rlp_str()
 		<< trie.hash().to_string()
 		<< "Should be:"
 		<< "0x58a7ceb9bddf59636c31c2be49742ea5be5ed1cf5ebbbe780292fce63623d244";
