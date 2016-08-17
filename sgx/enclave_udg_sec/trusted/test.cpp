@@ -357,9 +357,9 @@ int ecall_udg_test_byte_array() {
 		auto bar_a = rand.slice_ref<8>(i * 8);
 		auto actual_slice = rand.slice<8>(i * 8);
 
-		io::cdebug << i
-				<< bar_a.to_string()
-				<< actual_slice.to_string();
+//		io::cdebug << i
+//				<< bar_a.to_string()
+//				<< actual_slice.to_string();
 
 		if (!std::equal(bar_a.begin(), bar_a.end(), actual_slice.begin())) {
 			return 1;
@@ -367,7 +367,7 @@ int ecall_udg_test_byte_array() {
 
 		bar_a ^= bar_a;
 
-		io::cdebug << "Part two.";
+//		io::cdebug << "Part two.";
 
 //		io::cdebug << bar_a.to_string();
 //		io::cdebug << actual_slice.to_string();
@@ -445,13 +445,27 @@ int ecall_udg_test_trie() {
 			<< trie.hash().to_string()
 			<< trie.to_rlp_str();
 
-	trie.update("\x01\x01\x02", "hello");
+	io::cdebug <<
+			udg::hex_encode(udg::eth::compact_hex_decode(udg::hex_decode("010102")));
+
+	trie.update(udg::hex_decode("010102"), udg::hex_decode("68656c6c6f"));
 
 	io::cdebug << "Trie state"
 			<< trie.to_rlp_str()
 			<< trie.hash().to_string()
 			<< "Should be:"
-			<< "0x15da97c42b7ed2e1c0c8dab6a6d7e3d9dc0a75580bbc4f1f29c33996d1415dcc";
+			<< "0x2de7536c3e967ddb81be5ec40236162d89c0aa2dc3567ae28a9c1afab20da94b";
+
+	io::cdebug << "Bigger trie.";
+
+	trie.update(udg::hex_decode("010100"), udg::hex_decode("68656c6c6c"));
+	trie.update(udg::hex_decode("000102"), udg::hex_decode("68656c6d6f"));
+
+	io::cdebug << "Trie state"
+		<< trie.to_rlp_str()
+		<< trie.hash().to_string()
+		<< "Should be:"
+		<< "0x58a7ceb9bddf59636c31c2be49742ea5be5ed1cf5ebbbe780292fce63623d244";
 
 	return 0;
 }

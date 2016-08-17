@@ -21,6 +21,14 @@
 namespace udg {
 	namespace eth {
 
+		std::vector<uint8_t> compact_encode(std::vector<uint8_t> ref);
+		std::vector<uint8_t> compact_hex_decode(const std::vector<uint8_t>& str);
+		std::vector<uint8_t> compact_hex_encode(const std::vector<uint8_t>& nibbles);
+		std::vector<uint8_t> compact_decode(const std::vector<uint8_t>& str);
+		std::vector<uint8_t> decode_compact(const std::vector<uint8_t>& key);
+		bool has_terminator(const std::vector<uint8_t>& ref);
+		std::vector<uint8_t> remove_terminator(const std::vector<uint8_t>& ref);
+
 		struct Node: public rlp::RLPConvertable {
 			virtual ~Node() {};
 		};

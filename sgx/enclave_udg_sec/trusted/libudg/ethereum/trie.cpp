@@ -7,6 +7,7 @@
 
 #include "trie.hpp"
 #include "../crypto/all_hash.hpp"
+#include "../io.hpp"
 #include <algorithm>
 #include <stdexcept>
 
@@ -16,7 +17,17 @@ using namespace udg::eth;
 const h256 empty_root = h256("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421");
 const h256 empty_state = h256("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 
-static std::vector<uint8_t> compact_encode(std::vector<uint8_t> ref) {
+#define TRIE_DEBUG
+
+void trie_debug_func(const char* c) {
+#ifdef TRIE_DEBUG
+	io::cdebug << c;
+#endif
+}
+
+io::simple_io trie_debug(trie_debug_func);
+
+std::vector<uint8_t> udg::eth::compact_encode(std::vector<uint8_t> ref) {
 	uint8_t terminator = 0;
 	std::vector<uint8_t> out;
 	if (ref.back() == 16) {
@@ -49,7 +60,7 @@ static std::vector<uint8_t> compact_encode(std::vector<uint8_t> ref) {
 	return out;
 }
 
-static std::vector<uint8_t> compact_hex_decode(const std::vector<uint8_t>& str) {
+std::vector<uint8_t> udg::eth::compact_hex_decode(const std::vector<uint8_t>& str) {
 	std::vector<uint8_t> nibbles;
 
 	for (auto b : str) {
@@ -57,12 +68,12 @@ static std::vector<uint8_t> compact_hex_decode(const std::vector<uint8_t>& str) 
 		nibbles.push_back(b % 16);
 	}
 
-	*(nibbles.end() - 1) = 16;
+	nibbles.push_back(16);
 
 	return nibbles;
 }
 
-static std::vector<uint8_t> compact_hex_encode(const std::vector<uint8_t>& nibbles) {
+std::vector<uint8_t> udg::eth::compact_hex_encode(const std::vector<uint8_t>& nibbles) {
 	auto nl = nibbles.size();
 	if (nl == 0) {
 		return std::vector<uint8_t>();
@@ -86,7 +97,7 @@ static std::vector<uint8_t> compact_hex_encode(const std::vector<uint8_t>& nibbl
 	return str;
 }
 
-static std::vector<uint8_t> compact_decode(const std::vector<uint8_t>& str) {
+std::vector<uint8_t> udg::eth::compact_decode(const std::vector<uint8_t>& str) {
 	auto base = compact_hex_decode(str);
 	base.pop_back();
 	if (base[0] >= 2) {
@@ -102,7 +113,7 @@ static std::vector<uint8_t> compact_decode(const std::vector<uint8_t>& str) {
 }
 
 //... what is the difference between this and compact_decode?
-static std::vector<uint8_t> decode_compact(const std::vector<uint8_t>& key) {
+std::vector<uint8_t> udg::eth::decode_compact(const std::vector<uint8_t>& key) {
 	auto l = key.size() / 2;
 	std::vector<uint8_t> res;
 	res.resize(l, 0);
@@ -132,11 +143,11 @@ static size_t prefix_len(_II a, _II a_end, _II2 b, _II2 b_end) {
 	return i;
 }
 
-static bool has_terminator(const std::vector<uint8_t>& ref) {
+bool udg::eth::has_terminator(const std::vector<uint8_t>& ref) {
 	return ref.back() == 16;
 }
 
-static std::vector<uint8_t> remove_terminator(const std::vector<uint8_t>& ref) {
+std::vector<uint8_t> udg::eth::remove_terminator(const std::vector<uint8_t>& ref) {
 	if (has_terminator(ref)) {
 		return std::vector<uint8_t>(ref.begin(), ref.end() - 1);
 	} else {
@@ -157,11 +168,54 @@ static std::vector<uint8_t> concat(II v1, II v1_end, II2 v2, II2 v2_end) {
 	return out;
 }
 
+static std::string node_str(node_ptr node) {
+	auto short_node = boost::dynamic_pointer_cast<ShortNode>(node);
+	std::string out;
+	if (short_node) {
+		out.append("Short {");
+		out.append(udg::hex_encode(short_node->key)).append(" : ");
+		out.append(node_str(short_node->val)).append("}");
+	}
+
+	auto full_node = boost::dynamic_pointer_cast<FullNode>(node);
+	if (full_node) {
+		out.append("Full {\n");
+		for (uint8_t i = 0; i < full_node->children.size; i++) {
+			out.append(node_str(full_node->children[i])).append("\n");
+		}
+		out.append("}");
+	}
+
+	if (!node) {
+		out.append("nil");
+	}
+
+	auto hash_node = boost::dynamic_pointer_cast<HashNode>(node);
+	if (hash_node) {
+		out.append("Hash {").append(hash_node->hash.to_string()).append("}");
+	}
+
+	auto val_node = boost::dynamic_pointer_cast<ValueNode>(node);
+	if (val_node) {
+		out.append("Value {").append(udg::hex_encode(val_node->data)).append("}");
+	}
+
+	return out;
+}
+
 TrieReturn udg::eth::MemoryTrie::insert(
 		node_ptr node,
         const std::vector<uint8_t>& prefix,
         const std::vector<uint8_t>& key,
         node_ptr value) {
+
+	trie_debug << "Entering insert function with node:"
+			<< node_str(node)
+			<< "and value:"
+			<< node_str(value)
+			<< "with prefix/key:"
+			<< udg::hex_encode(prefix)
+			<< udg::hex_encode(key);
 
 	if (key.size() == 0) {
 		auto val_node = boost::dynamic_pointer_cast<ValueNode>(node);
@@ -440,6 +494,9 @@ HashReturn udg::eth::MemoryTrie::hash_root() {
 }
 
 HashReturn udg::eth::MemoryTrie::hash_children(node_ptr original) {
+	trie_debug << "Entering hash_children function with node:"
+		<< node_str(original);
+
 	auto short_node = boost::dynamic_pointer_cast<ShortNode>(original);
 	if (short_node) {
 		auto cached = boost::shared_ptr<ShortNode>(new ShortNode(*short_node));
