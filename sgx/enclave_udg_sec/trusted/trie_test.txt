@@ -1,0 +1,73 @@
+=== RUN   TestBiggerInsert
+Encoded key: []byte{0x1, 0x1, 0x2}
+Decoded key: []byte{0x0, 0x1, 0x0, 0x1, 0x0, 0x2, 0x10}
+
+Entering insert with prefix []byte(nil), key []byte{0x0, 0x1, 0x0, 0x1, 0x0, 0x2, 0x10} node
+<nil>
+and value
+68656c6c6f 
+Encoded key: []byte{0x1, 0x1, 0x0}
+Decoded key: []byte{0x0, 0x1, 0x0, 0x1, 0x0, 0x0, 0x10}
+
+Entering insert with prefix []byte(nil), key []byte{0x0, 0x1, 0x0, 0x1, 0x0, 0x0, 0x10} node
+{00010001000210: 68656c6c6f } 
+and value
+68656c6c6c 
+
+Entering insert with prefix []byte{0x0, 0x1, 0x0, 0x1, 0x0, 0x2}, key []byte{0x10} node
+<nil>
+and value
+68656c6c6f 
+
+Entering insert with prefix []byte{0x0, 0x1, 0x0, 0x1, 0x0, 0x0}, key []byte{0x10} node
+<nil>
+and value
+68656c6c6c 
+Entering hashChildren with {0001000100: [
+    0: {10: 68656c6c6c } 1: <nil> 2: {10: 68656c6c6f } 3: <nil> 4: <nil> 5: <nil> 6: <nil> 7: <nil> 8: <nil> 9: <nil> a: <nil> b: <nil> c: <nil> d: <nil> e: <nil> f: <nil> [17]: <nil> 
+  ] } 
+Entering hashChildren with [
+  0: {10: 68656c6c6c } 1: <nil> 2: {10: 68656c6c6f } 3: <nil> 4: <nil> 5: <nil> 6: <nil> 7: <nil> 8: <nil> 9: <nil> a: <nil> b: <nil> c: <nil> d: <nil> e: <nil> f: <nil> [17]: <nil> 
+] 
+Entering hashChildren with {10: 68656c6c6c } 
+Entering hashChildren with {10: 68656c6c6f } 
+Encoded key: []byte{0x0, 0x1, 0x2}
+Decoded key: []byte{0x0, 0x0, 0x0, 0x1, 0x0, 0x2, 0x10}
+
+Entering insert with prefix []byte(nil), key []byte{0x0, 0x0, 0x0, 0x1, 0x0, 0x2, 0x10} node
+{0001000100: [
+    0: {10: 68656c6c6c } 1: <nil> 2: {10: 68656c6c6f } 3: <nil> 4: <nil> 5: <nil> 6: <nil> 7: <nil> 8: <nil> 9: <nil> a: <nil> b: <nil> c: <nil> d: <nil> e: <nil> f: <nil> [17]: <nil> 
+  ] } 
+and value
+68656c6d6f 
+
+Entering insert with prefix []byte{0x0, 0x1}, key []byte{0x0, 0x1, 0x0} node
+<nil>
+and value
+[
+  0: {10: 68656c6c6c } 1: <nil> 2: {10: 68656c6c6f } 3: <nil> 4: <nil> 5: <nil> 6: <nil> 7: <nil> 8: <nil> 9: <nil> a: <nil> b: <nil> c: <nil> d: <nil> e: <nil> f: <nil> [17]: <nil> 
+] 
+
+Entering insert with prefix []byte{0x0, 0x0}, key []byte{0x0, 0x1, 0x0, 0x2, 0x10} node
+<nil>
+and value
+68656c6d6f 
+Entering hashChildren with {00: [
+    0: {0001000210: 68656c6d6f } 1: {000100: [
+        0: {10: 68656c6c6c } 1: <nil> 2: {10: 68656c6c6f } 3: <nil> 4: <nil> 5: <nil> 6: <nil> 7: <nil> 8: <nil> 9: <nil> a: <nil> b: <nil> c: <nil> d: <nil> e: <nil> f: <nil> [17]: <nil> 
+      ] } 2: <nil> 3: <nil> 4: <nil> 5: <nil> 6: <nil> 7: <nil> 8: <nil> 9: <nil> a: <nil> b: <nil> c: <nil> d: <nil> e: <nil> f: <nil> [17]: <nil> 
+  ] } 
+Entering hashChildren with [
+  0: {0001000210: 68656c6d6f } 1: {000100: [
+      0: {10: 68656c6c6c } 1: <nil> 2: {10: 68656c6c6f } 3: <nil> 4: <nil> 5: <nil> 6: <nil> 7: <nil> 8: <nil> 9: <nil> a: <nil> b: <nil> c: <nil> d: <nil> e: <nil> f: <nil> [17]: <nil> 
+    ] } 2: <nil> 3: <nil> 4: <nil> 5: <nil> 6: <nil> 7: <nil> 8: <nil> 9: <nil> a: <nil> b: <nil> c: <nil> d: <nil> e: <nil> f: <nil> [17]: <nil> 
+] 
+Entering hashChildren with {0001000210: 68656c6d6f } 
+Entering hashChildren with {000100: [
+    0: {10: 68656c6c6c } 1: <nil> 2: {10: 68656c6c6f } 3: <nil> 4: <nil> 5: <nil> 6: <nil> 7: <nil> 8: <nil> 9: <nil> a: <nil> b: <nil> c: <nil> d: <nil> e: <nil> f: <nil> [17]: <nil> 
+  ] } 
+--- PASS: TestBiggerInsert (0.00s)
+	trie_test.go:63: Hash of intermediate bigger trie is aea8c6d32754557f443418d5d2e3b5cfcfb104577951b334dcbb027b06e5ba17
+	trie_test.go:66: Hash of bigger trie is 58a7ceb9bddf59636c31c2be49742ea5be5ed1cf5ebbbe780292fce63623d244
+PASS
+ok  	_/home/nsamson/repos/go-ethereum/trie	0.013s
