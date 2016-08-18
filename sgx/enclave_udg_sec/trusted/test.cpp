@@ -495,11 +495,11 @@ int ecall_udg_test_trie() {
 int ecall_test() {
 	return
 			0
-//			|| ecall_udg_test_rlp()
+			|| ecall_udg_test_rlp()
 			|| ecall_udg_test_ECIES()
 			|| ecall_udg_test_uint256()
 			|| ecall_udg_test_byte_array()
 			|| ecall_udg_test_trie()
-//			|| ecall_test_ethash()
+			|| ecall_test_ethash()
 			;
 }
