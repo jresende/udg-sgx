@@ -109,10 +109,10 @@ namespace udg {
 
 			h256 _hash_state;
 
-			HashReturn hash(node_ptr node);
+			HashReturn hash(node_ptr node, bool force);
 			HashReturn hash_root();
 			HashReturn hash_children(node_ptr original);
-			node_ptr store(node_ptr);
+			node_ptr store(node_ptr, bool);
 
 			rlp::rlpvec rlpify(node_ptr node);
 

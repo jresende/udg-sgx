@@ -17,10 +17,10 @@ using namespace udg::eth;
 const h256 empty_root = h256("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421");
 const h256 empty_state = h256("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 
-#define TRIE_DEBUG
+#define TRIE_DEBUG 0
 
 void trie_debug_func(const char* c) {
-#ifdef TRIE_DEBUG
+#if TRIE_DEBUG
 	io::cdebug << c;
 #endif
 }
@@ -182,7 +182,7 @@ static std::string node_str(node_ptr node) {
 	if (full_node) {
 		out.append("Full {\n");
 		for (uint8_t i = 0; i < full_node->children.size; i++) {
-			out.append(node_str(full_node->children[i])).append("\n");
+			out.append(node_str(full_node->children[i])).append(", ");
 		}
 		out.append("}");
 		return out;
@@ -259,13 +259,13 @@ TrieReturn udg::eth::MemoryTrie::insert(
 						node_ptr(),
 						concat(prefix.begin(), prefix.end(), short_node->key.begin(), short_node->key.begin() + match_len + 1),
 						std::vector<uint8_t>(short_node->key.begin() + match_len + 1, short_node->key.end()),
-						value).node;
+						short_node->val).node;
 
 		branch->children[key[match_len]] =
 				this->insert(
 						node_ptr(),
-						concat(prefix.begin(), prefix.end(), short_node->key.begin(), short_node->key.begin() + match_len + 1),
-						std::vector<uint8_t>(short_node->key.begin() + match_len + 1, short_node->key.end()),
+						concat(prefix.begin(), prefix.end(), key.begin(), key.begin() + match_len + 1),
+						std::vector<uint8_t>(key.begin() + match_len + 1, key.end()),
 						value
 				).node;
 
@@ -300,6 +300,9 @@ TrieReturn udg::eth::MemoryTrie::insert(
 	}
 
 	if (!node) {
+        //trie_debug << "Creating new short_node:"
+        //    << udg::hex_encode(key)
+        //    << node_str(value);
 		return TrieReturn(true,
 				node_ptr(new ShortNode(key, value, true)));
 	}
@@ -465,26 +468,30 @@ node_ptr udg::eth::MemoryTrie::resolve(
 	return node;
 }
 
-HashReturn udg::eth::MemoryTrie::hash(node_ptr node) {
+HashReturn udg::eth::MemoryTrie::hash(node_ptr node, bool force) {
+    trie_debug << "Entering hash function with node:"
+		<< node_str(node);
 	auto rcc = this->hash_children(node);
 	auto collapsed = rcc.n1;
 	auto cached = rcc.n2;
 
-	auto hashed = this->store(collapsed);
+	auto hashed = this->store(collapsed, force);
 
 	auto hash_ptr = boost::dynamic_pointer_cast<HashNode>(hashed);
-	if (hash_ptr) {
+	if (hash_ptr && !force) {
 		auto cached_short = boost::dynamic_pointer_cast<ShortNode>(cached);
 		if (cached_short) {
 			cached_short->dirty = false;
+            trie_debug << "Short return.";
 			return HashReturn(hashed, cached, hash_ptr->hash);
 		}
 
 
-		auto cached_full = boost::dynamic_pointer_cast<FullNode>(cached);
+        auto cached_full = boost::dynamic_pointer_cast<FullNode>(cached);
 		if (cached_full) {
 			cached_full->dirty = false;
 		}
+      trie_debug << "Full return.";
 		return HashReturn(hashed, cached, hash_ptr->hash);
 	}
 
@@ -496,7 +503,7 @@ HashReturn udg::eth::MemoryTrie::hash_root() {
 		return HashReturn(node_ptr(new HashNode(empty_root)), node_ptr(), empty_root);
 	}
 
-	return this->hash(this->root);
+	return this->hash(this->root, true);
 }
 
 HashReturn udg::eth::MemoryTrie::hash_children(node_ptr original) {
@@ -509,7 +516,7 @@ HashReturn udg::eth::MemoryTrie::hash_children(node_ptr original) {
 
 		short_node->key = compact_encode(short_node->key);
 		if (!boost::dynamic_pointer_cast<ValueNode>(short_node->val)) {
-			auto hr = this->hash(short_node->val);
+			auto hr = this->hash(short_node->val, false);
 			short_node->val = hr.n1;
 			cached->val = hr.n2;
 		}
@@ -527,7 +534,7 @@ HashReturn udg::eth::MemoryTrie::hash_children(node_ptr original) {
 
 		for (uint8_t i = 0; i < 16; i++) {
 			if (full_node->children[i]) {
-				auto hc = this->hash(full_node->children[i]);
+				auto hc = this->hash(full_node->children[i], false);
 				full_node->children[i] = hc.n1;
 				cached->children[i] = hc.n2;
 			} else {
@@ -547,12 +554,19 @@ HashReturn udg::eth::MemoryTrie::hash_children(node_ptr original) {
 	return HashReturn(original, original);
 }
 
-node_ptr udg::eth::MemoryTrie::store(node_ptr node) {
+node_ptr udg::eth::MemoryTrie::store(node_ptr node, bool force) {
+    trie_debug << "Entered store with node:"
+        << node_str(node);
 	if (!node || boost::dynamic_pointer_cast<HashNode>(node)) {
 		return node;
 	}
 
 	auto tmp = node->to_rlp();
+
+    if (tmp.size() < 32 && !force) {
+        trie_debug << "Returning node as is.";
+        return node;
+    }
 
 	crypto::keccak256 ctxt;
 	ctxt.update(&tmp[0], tmp.size());
@@ -561,6 +575,8 @@ node_ptr udg::eth::MemoryTrie::store(node_ptr node) {
 	auto hash = boost::shared_ptr<HashNode>(new HashNode(ctxt.get_digest()));
 
 	this->data[hash->hash] = node;
+    trie_debug << "Node has hash:"
+        << hash->hash.to_string();
 
 	return hash;
 }
@@ -634,7 +650,7 @@ rlp::rlpvec udg::eth::ShortNode::to_rlp() const {
 }
 
 rlp::rlpvec udg::eth::HashNode::to_rlp() const {
-	throw std::runtime_error("Cannot encode hash node");
+    return this->hash.to_rlp_with_zeroes();
 }
 
 rlp::rlpvec udg::eth::ValueNode::to_rlp() const {

@@ -438,7 +438,18 @@ int ecall_udg_test_trie() {
 	io::cdebug << EQ_LINE;
 	io::cdebug << __PRETTY_FUNCTION__
 			<< EQ_LINE;
+    
+    io::cdebug << "encoding" 
+        << "0102030405"
+        << udg::hex_encode(udg::eth::compact_encode(udg::hex_decode("0102030405")))
+        << "000102030405"
+        << udg::hex_encode(udg::eth::compact_encode(udg::hex_decode("000102030405")))
+        << "000F010C0B0810"
+        << udg::hex_encode(udg::eth::compact_encode(udg::hex_decode("000F010C0B0810")))
+        << "0F010C0B0810"
+        << udg::hex_encode(udg::eth::compact_encode(udg::hex_decode("0F010C0B0810")));
 
+    try {
 	MemoryTrie trie;
 
 	io::cdebug << "Empty trie hash:"
@@ -473,7 +484,11 @@ int ecall_udg_test_trie() {
 		<< trie.hash().to_string()
 		<< "Should be:"
 		<< "0x58a7ceb9bddf59636c31c2be49742ea5be5ed1cf5ebbbe780292fce63623d244";
-
+    } catch(std::exception& e) {
+        io::cdebug << "Caught exception:"
+            << e.what();
+        return 1;
+    }
 	return 0;
 }
 
