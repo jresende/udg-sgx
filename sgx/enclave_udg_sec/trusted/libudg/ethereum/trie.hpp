@@ -29,17 +29,57 @@ namespace udg {
 		bool has_terminator(const std::vector<uint8_t>& ref);
 		std::vector<uint8_t> remove_terminator(const std::vector<uint8_t>& ref);
 
+		struct CacheData {
+			bool dirty;
+			h256 hash;
+
+			bool has_hash() const {
+				return hash != h256(0);
+			}
+
+			CacheData(bool dirty, const h256& hash) {
+				this->dirty = dirty;
+				this->hash = h256(hash);
+			}
+
+			CacheData(): dirty(false) {}
+		};
+
 		struct Node: public rlp::RLPConvertable {
 			virtual ~Node() {};
+			virtual CacheData cache() const {
+				return CacheData();
+			}
 		};
 
 		using node_ptr = boost::shared_ptr<Node>;
+
+		node_ptr decode_node(const rlp::rlpvec&);
+		node_ptr decode_node(const rlp::RLPData&);
+		node_ptr decode_short(const rlp::rlpdlist&);
+		node_ptr decode_full(rlp::rlpdlist);
+
+		struct RefReturn {
+			node_ptr node;
+			rlp::rlpdlist rd;
+
+			RefReturn (node_ptr n, const rlp::rlpdlist& b): node(n), rd(b) {}
+		};
+
+		RefReturn decode_ref(const rlp::rlpdlist&);
 
 		struct FullNode : public Node {
 			bool dirty;
 			udg::Array<node_ptr, 17> children;
 			rlp::rlpvec to_rlp() const;
-			FullNode(bool dirty) : dirty(dirty) {}
+
+			h256 hash_cache;
+
+			FullNode(bool dirty, h256 hash = 0) : dirty(dirty), hash_cache(hash) {}
+
+			CacheData cache() const {
+				return CacheData(dirty, hash_cache);
+			}
 		};
 
 		struct ShortNode : public Node {
@@ -48,9 +88,15 @@ namespace udg {
 
 			node_ptr val;
 
-			ShortNode(std::vector<uint8_t> key, node_ptr val, bool dirty)
-				: key(key), val(val), dirty(dirty) {}
+			h256 hash_cache;
+
+			ShortNode(std::vector<uint8_t> key, node_ptr val, bool dirty, h256 hash = 0)
+				: key(key), val(val), dirty(dirty), hash_cache(hash) {}
 			rlp::rlpvec to_rlp() const;
+
+			CacheData cache() const {
+				return CacheData(dirty, hash_cache);
+			}
 		};
 
 		struct HashNode : public Node {
@@ -88,7 +134,7 @@ namespace udg {
 
 		class MemoryTrie : public rlp::RLPConvertable {
 
-			std::map<h256, node_ptr> data; // Store in memory instead of file
+			std::map<h256, rlp::rlpvec> data; // Store in memory instead of file
 			node_ptr root;
 
 			TrieReturn insert(node_ptr node, const std::vector<uint8_t>& prefix,
@@ -109,10 +155,10 @@ namespace udg {
 
 			h256 _hash_state;
 
-			HashReturn hash(node_ptr node, bool force);
-			HashReturn hash_root();
-			HashReturn hash_children(node_ptr original);
-			node_ptr store(node_ptr, bool);
+			HashReturn hash(node_ptr node, bool force, bool db);
+			HashReturn hash_root(bool db);
+			HashReturn hash_children(node_ptr original, bool db);
+			node_ptr store(node_ptr, bool, bool);
 
 			rlp::rlpvec rlpify(node_ptr node);
 
@@ -122,8 +168,13 @@ namespace udg {
 			void update(const std::vector<uint8_t>& key, const std::vector<uint8_t>& val);
 			void update(const std::string& key, const std::string& val);
 
+			std::vector<rlp::rlpvec> prove(const std::vector<uint8_t>& key);
+			static bool verify_proof(h256 root_hash, const std::vector<uint8_t>& key, const std::vector<rlp::rlpvec>& proof);
+
 			rlp::rlpvec to_rlp();
 			rlp::rlpvec to_rlp() const;
+
+			std::string print_datastore() const;
 
 		};
 	}

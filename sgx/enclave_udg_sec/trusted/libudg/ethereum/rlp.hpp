@@ -22,6 +22,14 @@ namespace udg {
             LONG_ARR // Array length > 55 bytes
         };
 
+        constexpr bool is_arr(const ContentType& c) {
+        	return c >= 4;
+        }
+
+        constexpr bool is_str(const ContentType& c) {
+        	return c < 4;
+        }
+
         const size_t BIGLEN = 55;
 
         typedef std::vector<uint8_t> rlpvec;
@@ -99,6 +107,15 @@ namespace udg {
             RLPData& operator= (RLPData that);
 
             ContentType get_type() const;
+
+            bool is_arr() const {
+            	return this->type >= 4;
+            }
+
+            bool is_str() const {
+            	return !this->is_arr();
+            }
+
             int retrieve_bytes(rlpvec& out) const;
             int retrieve_arr(std::vector<RLPData>& out) const;
 
@@ -194,6 +211,10 @@ namespace udg {
 
             return std::distance(start_it, it);
         }
+
+        typedef std::vector<RLPData> rlpdlist;
+        std::vector<RLPData> decode_list(const rlpvec& ls);
+        rlpvec decode_string(const rlpvec& str);
 
         struct RLPConvertable {
         	virtual rlpvec to_rlp() const;
