@@ -335,3 +335,25 @@ std::string udg::rlp::RLPConvertable::to_rlp_str() const {
 	d.parse_bytes(r.begin(), r.end());
 	return d.to_hex_string();
 }
+
+std::vector<RLPData> udg::rlp::decode_list(const rlpvec& ls) {
+	RLPData r;
+	r.parse_bytes(ls.begin(), ls.end());
+	std::vector<RLPData> out;
+	if (r.retrieve_arr(out)) {
+		throw std::invalid_argument("RLP vector did not contain a list.");
+	} else {
+		return out;
+	}
+}
+
+rlpvec udg::rlp::decode_string(const rlpvec& str) {
+	RLPData r;
+	r.parse_bytes(str.begin(), str.end());
+	rlpvec out;
+	if (r.retrieve_bytes(out)) {
+		throw std::invalid_argument("RLP vector did not contain a string.");
+	} else {
+		return out;
+	}
+}

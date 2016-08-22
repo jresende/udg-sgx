@@ -447,7 +447,28 @@ int ecall_udg_test_trie() {
         << "000F010C0B0810"
         << udg::hex_encode(udg::eth::compact_encode(udg::hex_decode("000F010C0B0810")))
         << "0F010C0B0810"
-        << udg::hex_encode(udg::eth::compact_encode(udg::hex_decode("0F010C0B0810")));
+        << udg::hex_encode(udg::eth::compact_encode(udg::hex_decode("0F010C0B0810")))
+    	<< "hexdecode"
+    	<< "070606050702060210"
+    	<< udg::hex_encode(udg::eth::compact_hex_decode(udg::hex_decode("76657262")))
+    	<< "hexencode"
+    	<< "verb"
+    	<< udg::hex_encode(udg::eth::compact_hex_encode(udg::hex_decode("070606050702060210")))
+    	<< "compact decode"
+    	<< "112345"
+    	<< udg::hex_encode(udg::eth::compact_decode(udg::hex_decode("112345")))
+    	<< "00012345"
+		<< udg::hex_encode(udg::eth::compact_decode(udg::hex_decode("00012345")))
+    	<< "200f1cb8"
+		<< udg::hex_encode(udg::eth::compact_decode(udg::hex_decode("200f1cb8")))
+    	<< "3f1cb8"
+		<< udg::hex_encode(udg::eth::compact_decode(udg::hex_decode("3f1cb8")));
+
+    io::cdebug << "Got 3012, want 200102"
+		<< udg::hex_encode(udg::eth::compact_encode(udg::hex_decode("200102")))
+    	<< udg::hex_encode(udg::eth::compact_decode(udg::hex_decode("200102")))
+    	<< udg::hex_encode(udg::eth::compact_hex_encode(udg::hex_decode("200102")))
+    	<< udg::hex_encode(udg::eth::compact_hex_decode(udg::hex_decode("200102")));
 
     try {
 	MemoryTrie trie;
@@ -484,6 +505,75 @@ int ecall_udg_test_trie() {
 		<< trie.hash().to_string()
 		<< "Should be:"
 		<< "0x58a7ceb9bddf59636c31c2be49742ea5be5ed1cf5ebbbe780292fce63623d244";
+
+
+	io::cdebug << trie.hash().to_string();
+	io::cdebug << trie.to_rlp_str();
+	io::cdebug << trie.print_datastore();
+	io::cdebug << "PRE PROOF";
+
+	auto proof = trie.prove(udg::hex_decode("010102"));
+
+	io::cdebug << "POST PROOF";
+	io::cdebug << trie.hash().to_string();
+	io::cdebug << trie.to_rlp_str();
+	io::cdebug << trie.print_datastore();
+
+	for (size_t i = 0; i < proof.size(); i++) {
+		io::cdebug << std::string("Proof step ")
+			.append(udg::ulltostr(i))
+			.append(": ").append(udg::hex_encode(proof[i]));
+	}
+
+	if (!MemoryTrie::verify_proof(h256("58a7ceb9bddf59636c31c2be49742ea5be5ed1cf5ebbbe780292fce63623d244"),
+			udg::hex_decode("010102"),
+			proof)) {
+		io::cdebug << "proof generation broken?";
+	}
+
+	proof.clear();
+	proof.push_back(udg::hex_decode("e210a00b5e930cda9a76d41ffe0bb819b58b0e109d9be575e9e9072363e384e9290eaf"));
+	proof.push_back(udg::hex_decode("f83bca832001028568656c6d6fa08cdf45bd86fa172490853d71abe0ca2668ac10b74b5f8ff3c02e1a4aa1a955f0808080808080808080808080808080"));
+	proof.push_back(udg::hex_decode("e4821010a0ded55e299734a19c016473d3aaedbb50f7f338b648af413c2c95844fa28b7309"));
+	proof.push_back(udg::hex_decode("dfc7208568656c6c6c80c7208568656c6c6f8080808080808080808080808080"));
+
+	if (!MemoryTrie::verify_proof(h256("58a7ceb9bddf59636c31c2be49742ea5be5ed1cf5ebbbe780292fce63623d244"),
+				udg::hex_decode("010102"),
+				proof)) {
+		io::cdebug << "proof verification broken?";
+	}
+
+	proof.clear();
+	proof.push_back(udg::hex_decode("f8419f10000000000000000000000000000000000000000000000000000000000000a069e0dd952456a5f4b33a287860942e3cd0c499b649e38cd5234e093725635ee2"));
+	proof.push_back(udg::hex_decode("f851a04fc65528d0b2e740f94cef2125d689ebf5f680a6a5eeedcc0aef55a7be12a925808080808080808080a049e7c2eb16de5a80e16be3139d908d13b9ecad89c1be43ef8d213b934cb69a7c808080808080"));
+	proof.push_back(udg::hex_decode("f90211a0cdba9d2462610a66d2f4666a45cc3d2fd448f0e4f9016eb1fd6922f22331c355a09bc4434330c3cb5126fbba74e2e783b153259e98a8c07f4778d35eddeca95a6da0b5e82f76aae6ff988a22a43201d8bbfb4335e6f1d4cfd2fc41bb65b648a839fba0327b507226ff7a0bc5b77eabc5b8e1d9a9524fd3dc0b96d4aca571b43a2c2238a059188a338fc2c1ed57ab9171b8945e35207f71b5edb82bb12e7117c513984c8ba0dc5ae7028e70b55e54862af1d8311254060ef71ab6bb59601d8e51a9b8291711a038a3cffe52b0914c70faee98d8bc8633d10f0b77abc845e43ee4160b9d952d96a0e1246c6c33a7cdb084fee6e74686991bb134c6191709b0f653ca5c5d7d011217a0fd84f0fcdc7e15b36242ed40ecf90b0f679f47ce7397de8d7ccd58f09fc5ac6fa091e5a93143f6874a8fe4154abc0a215edc45f4fa162643d32ef75a3f1a4355d6a0ce7c95ef18cdc5b708e9054dfd23e26efd825d59b94e1309840cc04284a2486fa0fbd73a7256f80f55a35f5f359a1f64b78ebd4b38a1371d971ceb332e90af4491a08899c80b6f4c2dd245c94d7d6d1273749f8a26d90c4e146ce3d0a7d9ec2b6278a08486f64966a6bdff31ecbb7ed9bb26fa385d20a29b64522b0e92203c634f412da01fd9d6cead2947dc88649060544ea4929ee107496e3a2f63db6d32a6c1a39618a07298e95f13eb02a5160ae6f23223cfcb995f074d1b631e22d02b5a6e227171f280"));
+	proof.push_back(udg::hex_decode("f84fa08beb5dc7a5a57cec52f3c659d51f8050ebe4f2ddf2eb37bcd22cefef40b2da00c22001c22002c22003c22004c22005c22006c22007c22008c22009c2200ac2200bc2200cc2200dc2200ec2200f80"));
+	proof.push_back(udg::hex_decode("dfce8530000d0e0f870607080908070680808080808080808080808080808000"));
+	if (!MemoryTrie::verify_proof(
+			h256("94397afd8190c93e0f97435a7c7f5ad85ece57714a48dbfded355e315d4dc6e3"),
+			udg::hex_decode("000000000000000000000000000000000000000000000000000000000000000000000d0e0f"),
+			proof)) {
+		io::cdebug << "Big verification failed.";
+		return 1;
+	}
+
+
+	proof.clear();
+    proof.push_back(udg::hex_decode("f8419f10000000000000000000000000000000000000000000000000000000000000a0090204ca6fba1658a435d197bce7d712ef2c66e4a22c64fb833b9346d52a4df7"));
+    proof.push_back(udg::hex_decode("f851a095c08918dd613591f8a64fdb382d285673d6d7afe35e143bce869bd4c99e2069808080808080808080a049e7c2eb16de5a80e16be3139d908d13b9ecad89c1be43ef8d213b934cb69a7c808080808080"));
+    proof.push_back(udg::hex_decode("f90211a0a367db857cc482c4dcf22444440d5f0e182d97615e995b5e6a7270532c12fb09a09bc4434330c3cb5126fbba74e2e783b153259e98a8c07f4778d35eddeca95a6da0b5e82f76aae6ff988a22a43201d8bbfb4335e6f1d4cfd2fc41bb65b648a839fba0327b507226ff7a0bc5b77eabc5b8e1d9a9524fd3dc0b96d4aca571b43a2c2238a059188a338fc2c1ed57ab9171b8945e35207f71b5edb82bb12e7117c513984c8ba0dc5ae7028e70b55e54862af1d8311254060ef71ab6bb59601d8e51a9b8291711a038a3cffe52b0914c70faee98d8bc8633d10f0b77abc845e43ee4160b9d952d96a0e1246c6c33a7cdb084fee6e74686991bb134c6191709b0f653ca5c5d7d011217a0fd84f0fcdc7e15b36242ed40ecf90b0f679f47ce7397de8d7ccd58f09fc5ac6fa091e5a93143f6874a8fe4154abc0a215edc45f4fa162643d32ef75a3f1a4355d6a0ce7c95ef18cdc5b708e9054dfd23e26efd825d59b94e1309840cc04284a2486fa0fbd73a7256f80f55a35f5f359a1f64b78ebd4b38a1371d971ceb332e90af4491a08899c80b6f4c2dd245c94d7d6d1273749f8a26d90c4e146ce3d0a7d9ec2b6278a08486f64966a6bdff31ecbb7ed9bb26fa385d20a29b64522b0e92203c634f412da01fd9d6cead2947dc88649060544ea4929ee107496e3a2f63db6d32a6c1a39618a07298e95f13eb02a5160ae6f23223cfcb995f074d1b631e22d02b5a6e227171f280"));
+    proof.push_back(udg::hex_decode("f84bc22000c22001c22002c22003c22004c22005c22006c22007c22008c22009c2200ac2200bc2200cdccb823e0f87060708090807068080808080808080808080808080800dc2200ec2200f80"));
+
+    if (!MemoryTrie::verify_proof(
+			h256("12c95c61a1c1dc8a4e5394a516a9f2a1f26cf1a76babf095f540366a0c30fe60"),
+			udg::hex_decode("000000000000000000000000000000000000000000000000000000000000000d0e0f"),
+			proof)) {
+		io::cdebug << "Big verification failed.";
+		return 1;
+	}
+
+    io:: cdebug << "Verification success.";
+
     } catch(std::exception& e) {
         io::cdebug << "Caught exception:"
             << e.what();
@@ -495,7 +585,7 @@ int ecall_udg_test_trie() {
 int ecall_test() {
 	return
 			0
-//			|| ecall_udg_test_rlp()
+			|| ecall_udg_test_rlp()
 			|| ecall_udg_test_ECIES()
 			|| ecall_udg_test_uint256()
 			|| ecall_udg_test_byte_array()
