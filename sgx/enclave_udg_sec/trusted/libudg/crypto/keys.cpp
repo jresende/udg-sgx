@@ -12,7 +12,7 @@ using namespace udg;
 using namespace udg::crypto;
 
 KeyPair udg::crypto::get_unique_keys() {
-
+	throw;
 
 
 }
