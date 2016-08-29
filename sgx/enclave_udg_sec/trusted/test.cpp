@@ -590,6 +590,6 @@ int ecall_test() {
 			|| ecall_udg_test_uint256()
 			|| ecall_udg_test_byte_array()
 			|| ecall_udg_test_trie()
-//			|| ecall_test_ethash()
+			|| ecall_test_ethash()
 			;
 }
