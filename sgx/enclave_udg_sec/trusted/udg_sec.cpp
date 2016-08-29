@@ -4,7 +4,11 @@
 #include "udg_sec.h"
 #include "udg_sec_t.h"  /* print_string */
 #include "libudg/ethereum/blockchain.hpp"
+#include "libudg/ethereum/ethash.hpp"
+#include "libudg/ethereum/trie.hpp"
+#include "libudg/crypto/all_hash.hpp"
 #include "libudg/hex_encode.hpp"
+#include "libudg/invoke.hpp"
 #include "libudg/io.hpp"
 #include <stdexcept>
 
@@ -63,4 +67,93 @@ int ecall_udg_verify(const char* rlp) {
 	}
 
 	return -1;
+}
+
+int ecall_udg_generate_epoch(int epoch) {
+	try {
+		eth::EthashCache c(epoch);
+		io::cout << "Generated epoch " << epoch << ", hash " << c.hash().to_string() << "\n";
+		c.dump_to_file(epoch);
+
+		return 0;
+	} catch (std::runtime_error& e) {
+		io::cout << e.what() << "\n";
+		return -1;
+	}
+}
+
+int ecall_udg_read_epoch(int epoch) {
+	try {
+		eth::EthashCache c(epoch);
+		io::cout << "epoch " << epoch << ", hash " << c.hash().to_string() << "\n";
+
+		return 0;
+	} catch (std::runtime_error& e) {
+		io::cout << e.what() << "\n";
+		return -1;
+	}
+}
+
+int ecall_udg_size_epoch(int epoch) {
+	try {
+		io::cout << udg::eth::ethash::get_cache_size(epoch * 30000) << "\n";
+		return 0;
+	} catch (std::runtime_error& e) {
+		io::cout << e.what() << "\n";
+		return -1;
+	}
+}
+
+int ecall_udg_process(const char* blk, const char* proof) {
+	try {
+		eth::Block b(blk);
+		if (!b.validate()) {
+			io::cout << "Block did not validate.";
+			return -1;
+		} else {
+			eth::ethash::clear_cache();
+		}
+
+		auto h = b.hash();
+
+		rlp::rlpvec dat = udg::hex_decode(proof);
+		rlp::RLPData proof_list;
+		proof_list.parse_bytes(dat.begin(), dat.end());
+
+		rlp::rlpdlist elements;
+		proof_list.retrieve_arr(elements);
+
+		rlp::rlplist proof;
+		for (auto& proof_d : elements) {
+			rlp::rlpvec elem;
+			proof_d.retrieve_bytes(elem);
+			proof.push_back(elem);
+		}
+
+		if (!udg::eth::MemoryTrie::verify_proof(
+				b.header.root,
+				std::vector<uint8_t>(h.begin(), h.end()),
+				proof
+		)) {
+			io::cout << "Invalid proof for block.";
+			return -1;
+		}
+
+		// Process transaction
+		auto res = udg::invoke::process_transactions(b.transactions);
+
+		// Add signature, then print.
+		crypto::keccak256 ctxt;
+		ctxt.update(&res[0], res.size());
+		ctxt.finalize();
+		h256 hash = ctxt.get_digest();
+
+
+
+		return 0;
+	} catch (std::runtime_error& e) {
+		io::cout << e.what() << "\n";
+		return -1;
+	}
+
 }

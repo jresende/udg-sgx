@@ -27,10 +27,13 @@ namespace udg {
 		public:
 			EthashCache() = default;
 			EthashCache(uint64_t cache_size, h256 seed);
+			EthashCache(int block_number);
 
 			boost::shared_ptr<h512> operator[](uint64_t index);
 
 			h512 calc_dataset_item(uint64_t i);
+			h512 hash() const;
+			void dump_to_file(int epoch_number);
 
 			EthashResult hashimoto(uint64_t full_size, h256 header_hash, FixedSizedByteArray<8> nonce,
 					bool be_nonce = true);
@@ -66,6 +69,7 @@ namespace udg {
 			}
 
 			EthashCache get_cache(uint64_t block_number);
+			void clear_cache();
 
 		}
 

@@ -10,6 +10,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/syscall.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 /*
  * void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_file_size, (size_t* res, const char* filename));
@@ -90,4 +94,54 @@ void ocall_print(const char* str) {
 	fputs(str, stdout);
 
 	flush_stdout_occasionally();
+}
+
+void ocall_sysopen(int* fd, const char* filename, const char* mode) {
+
+	int flags = 0;
+	bool write = false;
+	bool read = false;
+	bool create_if_not_exists = false;
+
+	if (strchr(mode, 'w') != NULL) {
+		write = true;
+	}
+
+	if (strchr(mode, 'r') != NULL) {
+		read = true;
+	}
+
+	if (strchr(mode, '+') != NULL) {
+		create_if_not_exists = true;
+	}
+
+	if (write && read) {
+		flags |= O_RDWR;
+	} else if (write) {
+		flags |= O_WRONLY;
+	} else {
+		flags |= O_RDONLY;
+	}
+
+	if (create_if_not_exists) {
+		flags |= O_CREAT;
+	}
+
+	*fd = open(filename, flags, 0666);
+}
+
+void ocall_sysclose(int fd) {
+	close(fd);
+}
+
+void ocall_syswrite(long int* out, int fd, const void* buf, size_t len) {
+	*out = write(fd, buf, len);
+}
+
+void ocall_sysread(long int* out, int fd, void* buf, size_t len) {
+	*out = read(fd, buf, len);
+}
+
+void ocall_syslseek(long int* off, int fd, long int offset, int whence) {
+	*off = lseek(fd, offset, whence);
 }

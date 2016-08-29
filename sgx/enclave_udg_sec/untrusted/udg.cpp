@@ -13,6 +13,7 @@
 #include <sgx_status.h>
 #include <iostream>
 #include <string>
+#include <vector>
 #include "udg.h"
 
 #include "udg_sec_u.h"
@@ -156,7 +157,7 @@ int initialize_enclave(void)
     if (fp == NULL && (fp = fopen(token_path, "wb")) == NULL) {
         printf("Warning: Failed to create/open the launch token file \"%s\".\n", token_path);
     }
-    printf("token_path: %s\n", token_path);
+//    printf("token_path: %s\n", token_path);
     if (fp != NULL) {
         /* read the token from saved file */
         size_t read_num = fread(token, 1, sizeof(sgx_launch_token_t), fp);
@@ -212,10 +213,14 @@ enum class Action {
 	HELP,
 	PARSE,
 	VERIFY,
+	GENERATE_EPOCH,
+	SIZE_EPOCH,
+	READ_EPOCH,
+	PROCESS,
 	TEST
 };
 
-Action parse_args(int argc, char* argv[]) {
+Action parse_args(int argc, const char* argv[]) {
 	if (argc < 2) {
 		return Action::ERROR;
 	}
@@ -235,6 +240,15 @@ Action parse_args(int argc, char* argv[]) {
 		return Action::PARSE;
 	}
 
+	if (first_arg.compare("process") == 0) {
+		if (argc < 4) {
+			std::cerr << "process switch requires a block and proof (RLP-encoded lists) to be passed in."
+					<< std::endl;
+			return Action::ERROR;
+		}
+		return Action::PROCESS;
+	}
+
 	if (first_arg.compare("verify") == 0) {
 		if (argc < 3) {
 			std::cerr << "verify switch requires a block (RLP-encoded, hexadecimal text) to be passed in."
@@ -248,7 +262,28 @@ Action parse_args(int argc, char* argv[]) {
 		return Action::TEST;
 	}
 
+	if (first_arg.compare("generate") == 0) {
+		return Action::GENERATE_EPOCH;
+	}
+
+	if (first_arg.compare("epoch") == 0) {
+		if (std::string(argv[2]).compare("read") == 0) {
+			return Action::READ_EPOCH;
+		} else if (std::string(argv[2]).compare("size") == 0) {
+			return Action::SIZE_EPOCH;
+		}
+	}
+
 	return Action::ERROR;
+}
+
+int* parse_generate_args(int argc, const char **argv) {
+	auto out = new int[argc];
+	for (int i = 0; i < argc; i++) {
+//		std::cout << strtol(argv[i], nullptr, 10);
+		out[i] = (strtol(argv[i], nullptr, 10));
+	}
+	return out;
 }
 
 void print_help() {
@@ -258,7 +293,14 @@ void print_help() {
 			<< "        parse       parse the rlp representation of a\n"
 			   "                    block, print out a plain text representation.\n"
 			<< "        verify      parse and verify the contents of a block.\n"
-			<< "        test        run the tests built into the executable."
+			<< "        test        run the tests built into the executable.\n"
+			<< "        generate    generate the specified epochs (given as\n"
+			<< "                    epoch numbers, starting from 0)\n"
+			<< "        epoch [switch]\n"
+			<< "            read    reads and outputs the hash of an epoch, without\n"
+			<< "                    creating any new files.\n"
+			<< "            size    outputs the size of the cache for the ethash of\n"
+			<< "                    an epoch.\n"
 			<< std::endl;
 }
 
@@ -271,14 +313,14 @@ void print_failure() {
 }
 
 /* Application entry */
-int SGX_CDECL main(int argc, char *argv[])
+int SGX_CDECL main(int argc, const char *argv[])
 {
 
     /* Changing dir to where the executable is.*/
     char absolutePath [MAX_PATH];
     char *ptr = NULL;
 
-    ptr = realpath(dirname(argv[0]),absolutePath);
+    ptr = realpath(dirname(const_cast<char*>(argv[0])),absolutePath);
 
     if( chdir(absolutePath) != 0)
     		abort();
@@ -293,6 +335,7 @@ int SGX_CDECL main(int argc, char *argv[])
     int ecall_return = 0;
 
     auto act = parse_args(argc, argv);
+    int* inp;
 
     switch (act) {
 		case Action::TEST: {
@@ -324,6 +367,49 @@ int SGX_CDECL main(int argc, char *argv[])
     		ret = ecall_udg_parse(global_eid, &ecall_return, argv[2]);
     		if (ret != SGX_SUCCESS || ecall_return != 0) {
     			print_failure();
+				return ecall_return;
+			}
+			break;
+
+    	case Action::GENERATE_EPOCH:
+    		inp = parse_generate_args(argc - 2, argv + 2);
+    		for (int i = 0; i < argc - 2; i++) {
+    			ret = ecall_udg_generate_epoch(global_eid, &ecall_return, inp[i]);
+				if (ret != SGX_SUCCESS || ecall_return != 0) {
+					print_failure();
+					return ecall_return;
+				}
+    		}
+
+    		delete [] inp;
+    		break;
+
+    	case Action::READ_EPOCH:
+    		inp = new int;
+    		*inp = atoi(argv[3]);
+    		ret = ecall_udg_read_epoch(global_eid, &ecall_return, *inp);
+			if (ret != SGX_SUCCESS || ecall_return != 0) {
+				print_failure();
+				return ecall_return;
+			}
+    		delete inp;
+    		break;
+
+    	case Action::SIZE_EPOCH:
+			inp = new int;
+			*inp = atoi(argv[3]);
+			ret = ecall_udg_size_epoch(global_eid, &ecall_return, *inp);
+			if (ret != SGX_SUCCESS || ecall_return != 0) {
+				print_failure();
+				return ecall_return;
+			}
+			delete inp;
+			break;
+
+    	case Action::PROCESS:
+    		ret = ecall_udg_process(global_eid, &ecall_return, argv[2], argv[3]);
+			if (ret != SGX_SUCCESS || ecall_return != 0) {
+				print_failure();
 				return ecall_return;
 			}
 			break;

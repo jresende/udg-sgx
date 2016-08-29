@@ -201,3 +201,41 @@ void udg::io::DBSession::put(const char* key, const char* value, bool encrypt) {
 void udg::io::DBSession::del(const char* key) {
 	ocall_db_del(*this->db_ref, key);
 }
+
+udg::io::file::file(const std::string& name, const std::string& mode) {
+
+	int* fd = new int;
+	ocall_sysopen(fd, name.c_str(), mode.c_str());
+
+	if (*fd < 0) {
+		throw std::runtime_error("Error while opening file.");
+	}
+
+	this->fd = boost::shared_ptr<int>(fd, [](int* x) -> void{ocall_sysclose(*x);});
+
+}
+
+ssize_t udg::io::file::write(const void* data, size_t len) {
+
+	long int written;
+	ocall_syswrite(&written, *this->fd, data, len);
+
+	return written;
+
+}
+
+ssize_t udg::io::file::read(void* buf, size_t len) {
+	long int read;
+	ocall_sysread(&read, *this->fd, buf, len);
+
+	return read;
+}
+
+long int udg::io::file::seek(long int offset, int whence) {
+
+	long int out;
+	ocall_syslseek(&out, *this->fd, offset, whence);
+
+	return out;
+
+}

@@ -39,6 +39,13 @@ enclave {
         void ocall_read_file([out] int* res, [in, string] const char* filename, [out, size=len] void* out, size_t len);
         void ocall_write_file([out] int* res, [in, string] const char* filename, [in, size=len] const void* in, size_t len); // Beware confused deputies!
         
+        void ocall_sysopen([out] int* fd, [in, string] const char* filename, [in, string] const char* mode);
+        void ocall_syswrite([out] long* out, int fd, [in, size=len] const void *buf, size_t len);
+        void ocall_sysread([out] long* out, int fd, [out, size=len] void* buf, size_t len);
+        void ocall_sysclose(int fd);
+        void ocall_syslseek([out] long* off, int fd, long offset, int whence);
+        
+        
         void ocall_get_sys_ip([in, out, string] char* addr);
         
         void ocall_db_open([out] int* ret, [in,string] const char* filename, int create_if_not_exists);
@@ -55,6 +62,10 @@ enclave {
     	    public int ecall_udg_test_RLPxHandshake();
     	    public int ecall_udg_test_rlp();
     	    public int ecall_udg_test_uint256();
+    	    public int ecall_udg_generate_epoch(int epoch);
+    	    public int ecall_udg_read_epoch(int epoch);
+    	    public int ecall_udg_size_epoch(int epoch);
+    	    public int ecall_udg_process([in, string] const char* block_rlp, [in, string] const char* proof_rlp);
     	    public int ecall_test();
     	    
     	    public int ecall_udg_parse([in, string] const char* block_rlp);

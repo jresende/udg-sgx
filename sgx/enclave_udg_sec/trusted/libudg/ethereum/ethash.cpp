@@ -258,13 +258,125 @@ EthashCache udg::eth::ethash::get_cache(uint64_t block_number) {
 		return ethash_cache_cache.second;
 	} else {
 		ethash_cache_cache.second.invalidate();
-		EthashCache ret(ethash::get_cache_size(block_number), ethash::get_seedhash(block_number));
+		EthashCache ret(block_number / EPOCH_LENGTH);
 		ethash_cache_cache.first = block_number / EPOCH_LENGTH;
 		ethash_cache_cache.second = ret;
 		return ret;
 	}
 }
 
+// TODO: Add verification so the cache files can't be subsituted
+udg::eth::EthashCache::EthashCache(int epoch_number) {
+
+	try {
+		std::string filename = "ethash";
+		filename.append(udg::lltostr(epoch_number));
+		filename.append(".dat");
+
+		io::file f(filename, "r");
+
+		auto total = get_cache_size(epoch_number * 30000);
+
+		while (total != 0) {
+			h512 h;
+			f.read(h.data(), h512::size);
+			total -= h512::size;
+			this->values.push_back(boost::shared_ptr<h512>(new h512(h)));
+		}
+
+		io::cdebug << "Read from file";
+		io::cdebug << this->values.size();
+
+
+	} catch (std::runtime_error& e) {
+		(void) e;
+
+		auto cache_size = udg::eth::ethash::get_cache_size(epoch_number * EPOCH_LENGTH);
+		auto seed = udg::eth::ethash::get_seedhash(epoch_number * EPOCH_LENGTH);
+
+		if (cache_size % h512::size != 0) {
+			throw std::invalid_argument("cache size must be multiple of h512::size");
+		}
+
+		uint32_t num_nodes = (uint32_t) cache_size / h512::size;
+
+		boost::shared_ptr<h512> first(new h512);
+		this->values.push_back(first);
+
+		keccak512 ctxt;
+		ctxt.update(seed);
+		ctxt.finalize();
+		*first = ctxt.get_digest();
+
+		for (uint32_t i = 1; i < num_nodes; i++) {
+			boost::shared_ptr<h512> next(new h512);
+			ctxt = keccak512();
+			ctxt.update(*values[i-1]);
+			ctxt.finalize();
+			*next = ctxt.get_digest();
+			values.push_back(next);
+		}
+
+		for (uint32_t j = 0; j < CACHE_ROUNDS; j++) {
+			for (uint32_t i = 0; i < num_nodes; i++) {
+				auto wrd = this->values[i]->slice<WORD_BYTES>(0);
+				uint32_t word = *reinterpret_cast<uint32_t*>(wrd.data());
+				uint32_t index = word % num_nodes;
+
+				h512 data;
+				data = *values[(num_nodes - 1 + i) % num_nodes];
+
+				for (uint32_t w = 0; w < NODE_WORDS; w++) {
+					auto data_word = data.slice<WORD_BYTES>(w * WORD_BYTES);
+					data_word ^= values[index]->slice<WORD_BYTES>(w * WORD_BYTES);
+					std::copy(data_word.begin(), data_word.end(), data.begin() + (w * WORD_BYTES));
+				}
+
+				ctxt = keccak512();
+				ctxt.update(data);
+				ctxt.finalize();
+				*values[i] = ctxt.get_digest();
+			}
+		}
+
+		io::cdebug << "Generated new cache.";
+		io::cdebug << this->values.size();
+
+	}
+
+}
+
+
 void udg::eth::EthashCache::invalidate() {
 	this->values.clear();
+}
+
+h512 udg::eth::EthashCache::hash() const {
+
+	crypto::keccak512 ctxt;
+
+	for (auto ptr : this->values) {
+		ctxt.update(*ptr);
+	}
+
+	ctxt.finalize();
+	return ctxt.get_digest();
+
+}
+
+void udg::eth::EthashCache::dump_to_file(int epoch_number) {
+	std::string filename = "ethash";
+	filename.append(udg::lltostr(epoch_number));
+	filename.append(".dat");
+
+	io::file f(filename,"w+");
+	f.seek(0, 0);
+
+	for (auto ptr : this->values) {
+		f.write(ptr->data(), h512::size);
+	}
+}
+
+void udg::eth::ethash::clear_cache() {
+	ethash_cache_cache = std::pair<uint64_t, EthashCache>(0xFFFFFFFFFFFFFFFFULL, EthashCache());
 }

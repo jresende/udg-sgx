@@ -48,6 +48,18 @@ namespace udg {
 		extern simple_io cout;
 		extern simple_io cdebug;
 
+		class file {
+			boost::shared_ptr<int> fd;
+
+		public:
+
+			file(const std::string& name, const std::string& mode = "r");
+			ssize_t write(const void* data, size_t len);
+			ssize_t read(void* buf, size_t len);
+
+			long int seek(long int offset, int whence);
+		};
+
 		class DBSession {
 			boost::shared_ptr<int> db_ref;
 		public:
