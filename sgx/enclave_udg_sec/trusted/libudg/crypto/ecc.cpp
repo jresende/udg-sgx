@@ -13,6 +13,8 @@
 #include "secp256k1/include/secp256k1.h"
 #include "keccak.hpp"
 #include <sgx_utils.h>
+#include <string.h>
+#include <stdlib.h>
 #include <sgx_attributes.h>
 #include <boost/shared_ptr.hpp>
 
@@ -147,7 +149,8 @@ KeyPair udg::crypto::KeyPair::create_enclave_pair() {
 
 	sgx_create_report(nullptr, nullptr, &report);
 
-	req.key_name = SGX_KEYSELECT_REPORT;
+	memset(&req, 0, sizeof(sgx_key_request_t));
+	req.key_name = SGX_KEYSELECT_SEAL;
 	req.key_policy = SGX_KEYPOLICY_MRSIGNER;
 	req.cpu_svn = report.body.cpu_svn;
 	req.isv_svn = report.body.isv_svn;
@@ -155,6 +158,8 @@ KeyPair udg::crypto::KeyPair::create_enclave_pair() {
 	sgx_get_key(&req, &key);
 
 	h128 hkey((uint8_t*)key, 16);
+
+//	io::cdebug << hkey.to_string();
 
 	keccak256 ctxt;
 	ctxt.update(hkey);

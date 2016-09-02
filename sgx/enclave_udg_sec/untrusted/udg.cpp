@@ -222,6 +222,8 @@ enum class Action {
 	SIZE_EPOCH,
 	READ_EPOCH,
 	PROCESS,
+	PUBKEY,
+	RECOVER,
 	TEST
 };
 
@@ -277,6 +279,20 @@ Action parse_args(int argc, const char* argv[]) {
 		} else if (std::string(argv[2]).compare("size") == 0) {
 			return Action::SIZE_EPOCH;
 		}
+	}
+
+	if (first_arg.compare("pubkey") == 0) {
+		return Action::PUBKEY;
+	}
+
+	if (first_arg.compare("recover") == 0) {
+		if (argc < 4) {
+			std::cerr << "recover switch requires a signature and a hash to be passed in."
+					<< std::endl;
+			return Action::ERROR;
+		}
+
+		return Action::RECOVER;
 	}
 
 	return Action::ERROR;
@@ -413,6 +429,22 @@ int SGX_CDECL main(int argc, const char *argv[])
 
     	case Action::PROCESS:
     		ret = ecall_udg_process(global_eid, &ecall_return, argv[2], argv[3], argv[4]);
+			if (ret != SGX_SUCCESS || ecall_return != 0) {
+				print_failure();
+				return ecall_return;
+			}
+			break;
+
+    	case Action::PUBKEY:
+    		ret = ecall_udg_print_pubkey(global_eid, &ecall_return);
+    		if (ret != SGX_SUCCESS || ecall_return != 0) {
+    			print_failure();
+    			return ecall_return;
+    		}
+    		break;
+
+    	case Action::RECOVER:
+    		ret = ecall_udg_recover(global_eid, &ecall_return, argv[2], argv[3]);
 			if (ret != SGX_SUCCESS || ecall_return != 0) {
 				print_failure();
 				return ecall_return;

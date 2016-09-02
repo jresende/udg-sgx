@@ -65,6 +65,8 @@ enclave {
     	    public int ecall_udg_generate_epoch(int epoch);
     	    public int ecall_udg_read_epoch(int epoch);
     	    public int ecall_udg_size_epoch(int epoch);
+    	    public int ecall_udg_print_pubkey();
+    	    public int ecall_udg_recover([in, string] const char* signature, [in, string] const char* message);
     	    public int ecall_udg_process([in, string] const char* block_rlp, [in, string] const char* proof_rlp, [in, string] const char* transaction_hash);
     	    public int ecall_test();
     	    

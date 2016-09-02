@@ -60,6 +60,14 @@ int ecall_udg_verify(const char* rlp) {
 
 		io::cout << "Is Valid Block? " << valid << "\n";
 
+		io::cout << "Signed Hash: ";
+
+		auto kp = udg::crypto::KeyPair::create_enclave_pair();
+		auto sig = udg::crypto::sign(kp.priv_key, blk.hash());
+		io::cout << sig.to_string();
+
+		io::cout << "\n";
+
 		return valid ? 0 : 1;
 
 	} catch (std::runtime_error& e) {
@@ -172,4 +180,20 @@ int ecall_udg_process(const char* blk, const char* proof, const char* transactio
 		return -1;
 	}
 
+}
+
+int ecall_udg_print_pubkey() {
+	auto kp = udg::crypto::KeyPair::create_enclave_pair();
+	io::cout << kp.pub_key.to_string() << "\n";
+	return 0;
+}
+
+int ecall_udg_recover(const char* sig, const char* hash) {
+	crypto::Signature s(sig);
+	h256 h(hash);
+
+	auto rec = udg::crypto::recover(s, h);
+
+	io::cout << rec.to_string() << "\n";
+	return 0;
 }
