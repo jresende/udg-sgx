@@ -57,6 +57,7 @@ namespace udg {
 			PrivateKey priv_key;
 
 			static KeyPair create_rand();
+			static KeyPair create_enclave_pair();
 
 			KeyPair();
 			KeyPair(const KeyPair& that);

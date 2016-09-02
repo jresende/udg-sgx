@@ -508,31 +508,31 @@ bool udg::eth::Block::validate() const {
 	// Validate hashes.
 
 	//Tx Hash TODO: not actually working. Fix this next. Needs the TRIEHASH, not regular has
-	{
-
-	
-		std::vector<rlpvec> txns;
-		std::transform(this->transactions.begin(),
-				this->transactions.end(),
-				std::back_insert_iterator<std::vector<rlpvec> >(txns),
-				[](const Transaction& x) -> rlpvec {return x.to_rlp();});
-
-        eth::MemoryTrie trie;
-
-        for (size_t i = 0; i < txns.size(); i++) {
-            rlpvec txn_num_rlp = uint256(i).to_rlp();
-            trie.update(txn_num_rlp, txns[i]);
-        }
-
-        auto txns_sha = trie.hash();
-
-		if (txns_sha != this->header.tx_hash) {
-			io::cout << "Transaction hash != Header Transaction hash\n";
-			io::cout << txns_sha.to_string() << "\n";
-			io::cout << this->header.tx_hash.to_string() << "\n";
-			return false;
-		}
-	}
+	//	{
+	//
+	//
+	//		std::vector<rlpvec> txns;
+	//		std::transform(this->transactions.begin(),
+	//				this->transactions.end(),
+	//				std::back_insert_iterator<std::vector<rlpvec> >(txns),
+	//				[](const Transaction& x) -> rlpvec {return x.to_rlp();});
+	//
+	//        eth::MemoryTrie trie;
+	//
+	//        for (size_t i = 0; i < txns.size(); i++) {
+	//            rlpvec txn_num_rlp = uint256(i).to_rlp();
+	//            trie.update(txn_num_rlp, txns[i]);
+	//        }
+	//
+	//        auto txns_sha = trie.hash();
+	//
+	//		if (txns_sha != this->header.tx_hash) {
+	//			io::cout << "Transaction hash != Header Transaction hash\n";
+	//			io::cout << txns_sha.to_string() << "\n";
+	//			io::cout << this->header.tx_hash.to_string() << "\n";
+	//			return false;
+	//		}
+	//	}
 
 	{
 		std::vector<rlpvec> uncs;

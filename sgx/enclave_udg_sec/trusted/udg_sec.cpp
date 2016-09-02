@@ -104,9 +104,37 @@ int ecall_udg_size_epoch(int epoch) {
 	}
 }
 
-int ecall_udg_process(const char* blk, const char* proof) {
+int ecall_udg_process(const char* blk, const char* proof, const char* transaction_hash) {
 	try {
 		eth::Block b(blk);
+
+		auto h = b.hash();
+
+		rlp::rlpvec dat = udg::hex_decode(proof);
+		{
+			rlp::RLPData proof_list;
+			proof_list.parse_bytes(dat.begin(), dat.end());
+
+			rlp::rlpdlist elements;
+			proof_list.retrieve_arr(elements);
+
+			rlp::rlplist proof;
+			for (auto& proof_d : elements) {
+				rlp::rlpvec elem;
+				proof_d.retrieve_bytes(elem);
+				proof.push_back(elem);
+			}
+
+//			if (!udg::eth::MemoryTrie::verify_proof(
+//					b.header.root,
+//					std::vector<uint8_t>(h.begin(), h.end()),
+//					proof
+//			)) {
+//				io::cout << "Invalid proof for block.";
+//				return -1;
+//			}
+		}
+
 		if (!b.validate()) {
 			io::cout << "Block did not validate.";
 			return -1;
@@ -114,41 +142,29 @@ int ecall_udg_process(const char* blk, const char* proof) {
 			eth::ethash::clear_cache();
 		}
 
-		auto h = b.hash();
-
-		rlp::rlpvec dat = udg::hex_decode(proof);
-		rlp::RLPData proof_list;
-		proof_list.parse_bytes(dat.begin(), dat.end());
-
-		rlp::rlpdlist elements;
-		proof_list.retrieve_arr(elements);
-
-		rlp::rlplist proof;
-		for (auto& proof_d : elements) {
-			rlp::rlpvec elem;
-			proof_d.retrieve_bytes(elem);
-			proof.push_back(elem);
-		}
-
-		if (!udg::eth::MemoryTrie::verify_proof(
-				b.header.root,
-				std::vector<uint8_t>(h.begin(), h.end()),
-				proof
-		)) {
-			io::cout << "Invalid proof for block.";
-			return -1;
-		}
-
 		// Process transaction
-		auto res = udg::invoke::process_transactions(b.transactions);
+//		auto res = udg::invoke::process_transactions(b.transactions);
 
-		// Add signature, then print.
-		crypto::keccak256 ctxt;
-		ctxt.update(&res[0], res.size());
-		ctxt.finalize();
-		h256 hash = ctxt.get_digest();
+//		 Add signature, then print.
+//		crypto::keccak256 ctxt;
+//		ctxt.update(&res[0], res.size());
+//		ctxt.finalize();
+//		h256 hash = ctxt.get_digest();
 
+		bool verified_transaction = false;
+		auto t_hash = h256(transaction_hash);
 
+		for (auto& t : b.transactions) {
+			io::cdebug << "Transaction hash";
+			io::cdebug << t.hash().to_string();
+			io::cdebug << t.sig_hash().to_string();
+			if (t.hash() == t_hash) {
+				auto kp = udg::crypto::KeyPair::create_enclave_pair();
+				auto sig = udg::crypto::sign(kp.priv_key, t_hash);
+				io::cout << sig.to_string() << "\n";
+				return 0;
+			}
+		}
 
 		return 0;
 	} catch (std::runtime_error& e) {

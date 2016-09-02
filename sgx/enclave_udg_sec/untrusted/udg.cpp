@@ -17,6 +17,7 @@
 #include "udg.h"
 
 #include "udg_sec_u.h"
+#include "process_transactions.hpp"
 
 
 
@@ -125,6 +126,10 @@ void print_error_message(sgx_status_t ret)
     
     if (idx == ttl)
         printf("Error: Unexpected error occurred.\n");
+}
+
+sgx_enclave_id_t get_enclave() {
+	return global_eid;
 }
 
 /* Initialize the enclave:
@@ -241,8 +246,8 @@ Action parse_args(int argc, const char* argv[]) {
 	}
 
 	if (first_arg.compare("process") == 0) {
-		if (argc < 4) {
-			std::cerr << "process switch requires a block and proof (RLP-encoded lists) to be passed in."
+		if (argc < 5) {
+			std::cerr << "process switch requires a block, transaction hash, and proof (RLP-encoded) to be passed in."
 					<< std::endl;
 			return Action::ERROR;
 		}
@@ -407,7 +412,7 @@ int SGX_CDECL main(int argc, const char *argv[])
 			break;
 
     	case Action::PROCESS:
-    		ret = ecall_udg_process(global_eid, &ecall_return, argv[2], argv[3]);
+    		ret = ecall_udg_process(global_eid, &ecall_return, argv[2], argv[3], argv[4]);
 			if (ret != SGX_SUCCESS || ecall_return != 0) {
 				print_failure();
 				return ecall_return;

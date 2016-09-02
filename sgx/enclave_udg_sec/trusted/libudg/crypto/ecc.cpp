@@ -10,6 +10,11 @@
 #include "../io.hpp"
 #include "secp256k1/include/secp256k1_recovery.h"
 #include "secp256k1/include/secp256k1_ecdh.h"
+#include "secp256k1/include/secp256k1.h"
+#include "keccak.hpp"
+#include <sgx_utils.h>
+#include <sgx_attributes.h>
+#include <boost/shared_ptr.hpp>
 
 using namespace udg;
 using namespace udg::crypto;
@@ -51,7 +56,7 @@ PublicKey udg::crypto::SignatureStruct::recover(const h256& _hash) const {
 
 Signature udg::crypto::sign(Secret const& k, h256 const& hash) {
 	Signature s;
-	SignatureStruct& ss = *reinterpret_cast<SignatureStruct*>(&s);
+	SignatureStruct ss(s);
 
 	if (!secp256k1_ecdsa_sign_recoverable(secp_ctx,
 			(secp256k1_ecdsa_recoverable_signature *)s.data(),
@@ -125,4 +130,51 @@ Secret udg::crypto::shared_secret(const PublicKey& pubk, const PrivateKey& privk
 bool udg::crypto::verify(const PublicKey& pubk, const Signature& _sig, const h256& _message) {
 	return secp256k1_ecdsa_verify(secp_ctx,(const secp256k1_ecdsa_signature*) _sig.data(), _message.data(),
 			(const secp256k1_pubkey*)pubk.data()) == 1;
+}
+
+boost::shared_ptr<KeyPair> enclave_kpair;
+
+KeyPair udg::crypto::KeyPair::create_enclave_pair() {
+
+	if (enclave_kpair) {
+		return *enclave_kpair;
+	}
+
+	sgx_key_request_t req;
+	sgx_key_128bit_t key;
+
+	sgx_report_t report;
+
+	sgx_create_report(nullptr, nullptr, &report);
+
+	req.key_name = SGX_KEYSELECT_REPORT;
+	req.key_policy = SGX_KEYPOLICY_MRSIGNER;
+	req.cpu_svn = report.body.cpu_svn;
+	req.isv_svn = report.body.isv_svn;
+
+	sgx_get_key(&req, &key);
+
+	h128 hkey((uint8_t*)key, 16);
+
+	keccak256 ctxt;
+	ctxt.update(hkey);
+	ctxt.finalize();
+	h256 h = ctxt.get_digest();
+
+	while (secp256k1_ec_seckey_verify(secp_ctx, h.data()) != 1) {
+		keccak256 ctxt;
+		ctxt.update(h);
+		ctxt.finalize();
+		h = ctxt.get_digest();
+	}
+
+	auto out = new KeyPair;
+	out->priv_key = PrivateKey(h);
+	int r = secp256k1_ec_pubkey_create(secp_ctx, (secp256k1_pubkey*) out->pub_key.data(), h.data());
+	(void)r;
+	enclave_kpair = boost::shared_ptr<KeyPair>(out);
+
+
+	return udg::crypto::KeyPair::create_enclave_pair();
+
 }
