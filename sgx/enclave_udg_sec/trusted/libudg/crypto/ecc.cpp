@@ -33,18 +33,29 @@ bool udg::crypto::SignatureStruct::isValid() const {
 }
 
 PublicKey udg::crypto::recover(Signature const& _sig, h256 const& _message) {
-	h520 o;
-	int pklen;
-	if (_sig[64] > 3 || !secp256k1_ecdsa_recover(secp_ctx, (secp256k1_pubkey *) o.data(),
-			(const secp256k1_ecdsa_recoverable_signature *)_sig.data(), _message.data())) {
-		io::cdebug << "Key recovery failed.";
+
+	Signature bytes65;
+	PublicKey out;
+
+	int ret = secp256k1_ecdsa_recoverable_signature_parse_compact(
+			secp_ctx,
+			(secp256k1_ecdsa_recoverable_signature *)bytes65.data(),
+			_sig.data(),
+			_sig[64]
+	);
+
+	if (ret == 0) {
 		return PublicKey();
 	}
 
-	PublicKey out(o.begin() + 1, o.end());
+	ret = secp256k1_ecdsa_recover(
+			secp_ctx,
+			(secp256k1_pubkey*)out.data(),
+			(secp256k1_ecdsa_recoverable_signature *)bytes65.data(),
+			_message.data()
+	);
 
-	if (out == c_zeroKey) {
-		io::cdebug << "Key recovery failed. Bad key?";
+	if (ret == 0) {
 		return PublicKey();
 	}
 
@@ -59,9 +70,10 @@ PublicKey udg::crypto::SignatureStruct::recover(const h256& _hash) const {
 Signature udg::crypto::sign(Secret const& k, h256 const& hash) {
 	Signature s;
 	SignatureStruct ss(s);
+	Signature rec_sig;
 
 	if (!secp256k1_ecdsa_sign_recoverable(secp_ctx,
-			(secp256k1_ecdsa_recoverable_signature *)s.data(),
+			(secp256k1_ecdsa_recoverable_signature *)rec_sig.data(),
 			hash.data(),
 			k.data(),
 			nullptr,
@@ -70,7 +82,17 @@ Signature udg::crypto::sign(Secret const& k, h256 const& hash) {
 		return Signature();
 	}
 
-	// Normalization is handled by secp256k1 library
+	int recid;
+
+	secp256k1_ecdsa_recoverable_signature_serialize_compact(
+			secp_ctx,
+			s.data(),
+			&recid,
+			(secp256k1_ecdsa_recoverable_signature*)rec_sig.data()
+	);
+
+	s[64] = uint8_t(recid);
+
 
 	return s;
 
