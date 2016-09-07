@@ -62,9 +62,11 @@ int ecall_udg_verify(const char* rlp) {
 
 		io::cout << "Signed Hash: ";
 
-		auto kp = udg::crypto::KeyPair::create_enclave_pair();
-		auto sig = udg::crypto::sign(kp.priv_key, blk.hash());
-		io::cout << sig.to_string();
+        if (valid) {
+		    auto kp = udg::crypto::KeyPair::create_enclave_pair();
+		    auto sig = udg::crypto::sign(kp.priv_key, blk.hash());
+		    io::cout << sig.to_string();
+        }
 
 		io::cout << "\n";
 

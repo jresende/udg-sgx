@@ -71,6 +71,8 @@ Signature udg::eth::Transaction::sig() const {
 	std::copy(R_be.begin(), R_be.end(), out.begin());
 	std::copy(S_be.begin(), S_be.end(), out.begin() + 32);
 	out[64] = this->V - 27;
+
+    io::cdebug << out.to_string();
 	return out;
 }
 
@@ -91,6 +93,8 @@ Address udg::eth::Transaction::from() const {
 	ctxt.get_digest(h.data());
 
 	Address out(h.begin() + 12, h.end());
+
+    io::cdebug << h.to_string();
 
 	return out;
 }
@@ -384,7 +388,8 @@ void udg::eth::Block::load_rlp(const rlpvec& rlp) {
 
 // Need to figure out why signature verification does not work
 bool udg::eth::Transaction::validate() const {
-	return true;
+    this->from();
+    return udg::crypto::verify(udg::crypto::recover(this->sig(), this->sig_hash()), this->sig(), this->sig_hash());
 }
 
 bool udg::eth::Header::validate() const {
