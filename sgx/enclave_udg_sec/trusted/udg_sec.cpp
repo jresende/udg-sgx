@@ -56,6 +56,8 @@ int ecall_udg_verify(const char* rlp) {
 				<< "\nBlock Hash:"
 				<< blk.hash().to_string() << "\n";
 
+		io::cdebug << udg::hex_encode(blk.to_rlp());
+
 		bool valid = blk.validate();
 
 		io::cout << "Is Valid Block? " << valid << "\n";
@@ -165,9 +167,9 @@ int ecall_udg_process(const char* blk, const char* proof, const char* transactio
 		auto t_hash = h256(transaction_hash);
 
 		for (auto& t : b.transactions) {
-			io::cdebug << "Transaction hash";
-			io::cdebug << t.hash().to_string();
-			io::cdebug << t.sig_hash().to_string();
+//			io::cdebug << "Transaction hash";
+//			io::cdebug << t.hash().to_string();
+//			io::cdebug << t.sig_hash().to_string();
 			if (t.hash() == t_hash) {
 				auto kp = udg::crypto::KeyPair::create_enclave_pair();
 				auto sig = udg::crypto::sign(kp.priv_key, t_hash);

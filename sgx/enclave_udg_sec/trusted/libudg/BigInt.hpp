@@ -149,10 +149,12 @@ namespace udg {
 				return false;
 			}
 
-			for (long int i = BigInt::size - 1; i > 0; i--) {
-				if (this->_data[i] > that._data[i]) {
+			for (long int i = BigInt::size; i > 0; i--) {
+//				io::cdebug << i - 1;
+				long int n = i - 1;
+				if (this->_data[n] > that._data[n]) {
 					return true;
-				} else if (this->_data[i] < that._data[i]) {
+				} else if (this->_data[n] < that._data[n]) {
 					return false;
 				}
 			}

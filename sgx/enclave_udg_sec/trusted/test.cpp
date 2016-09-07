@@ -229,6 +229,16 @@ int ecall_udg_test_uint256() {
 	uint256 two("0x2");
 	uint256 four = 4;
 
+	{
+		//Failed block
+		uint256 limit = 42005;
+		uint256 used = 42000;
+		io::cdebug << "Comparison not working!";
+		if (!(limit >= used)) {
+			return -1;
+		}
+	}
+
 //	uint256 two("0xFFFF");
 
 

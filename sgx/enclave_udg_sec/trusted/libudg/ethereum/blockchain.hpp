@@ -30,6 +30,7 @@ namespace udg {
 			uint8_t V;
 			uint256 R;
 			uint256 S;
+			bool contract_creation;
 
 			h256 hash() const;
 			uint64_t size() const;

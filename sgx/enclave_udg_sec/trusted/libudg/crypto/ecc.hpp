@@ -10,6 +10,7 @@
 
 #include <stdint.h>
 #include <algorithm>
+#include <string>
 #include "secp256k1/include/secp256k1_recovery.h"
 #include "../byte_array.hpp"
 
@@ -37,6 +38,8 @@ namespace udg {
 				out[64] = v;
 				return out;
 			}
+
+			std::string to_string() const;
 
 			/// @returns true if r,s,v values are valid, otherwise false
 			bool isValid() const;

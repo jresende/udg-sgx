@@ -55,8 +55,13 @@ udg::eth::Transaction::Transaction(const std::vector<RLPData>& from_rlp) {
 	this->account_nonce = FixedSizedByteArray<8>(&acc_non[0], acc_non.size(), true);
 	this->price = uint256(price.begin(), price.end(), true);
 	this->gas_limit = uint256(gas_limit.begin(), gas_limit.end(), true);
+	if (to_addr.size() < Address::size) {
+		this->contract_creation = true;
+	} else {
+		this->contract_creation = false;
+	}
 	this->recipient = Address(to_addr.begin(), to_addr.end());
-	this->amount = uint256(amount.begin(), amount.begin(), true);
+	this->amount = uint256(amount.begin(), amount.end(), true);
 	this->payload = std::vector<uint8_t>(payload.begin(), payload.end());
 	this->V = v[0];
 	this->R = uint256(r.begin(), r.end(), true);
@@ -139,6 +144,11 @@ rlpvec udg::eth::Transaction::to_rlp() const {
 	rlpvec price = this->price.be_serialize().to_rlp();
 	rlpvec gas_limit = this->gas_limit.be_serialize().to_rlp();
 	rlpvec recipient = this->recipient.to_rlp_with_zeroes();
+
+	if (this->contract_creation) {
+		recipient = rlp::to_rlp("");
+	}
+
 	rlpvec amount = this->amount.be_serialize().to_rlp();
 	rlpvec payload = rlp::to_rlp(this->payload);
 	rlpvec v = rlp::to_rlp((char) this->V);
@@ -157,6 +167,16 @@ rlpvec udg::eth::Transaction::to_rlp() const {
 	lst.push_back(s);
 
 	rlpvec trans_rlp = rlp::to_rlp_list(lst);
+//	io::cdebug << udg::hex_encode(acc_non);
+//	io::cdebug << udg::hex_encode(price);
+//	io::cdebug << udg::hex_encode(gas_limit);
+//	io::cdebug << udg::hex_encode(recipient);
+//	io::cdebug << udg::hex_encode(amount);
+//	io::cdebug << udg::hex_encode(payload);
+//	io::cdebug << udg::hex_encode(v);
+//	io::cdebug << udg::hex_encode(r);
+//	io::cdebug << udg::hex_encode(s);
+//	io::cdebug << udg::hex_encode(trans_rlp);
 	return trans_rlp;
 }
 
@@ -350,6 +370,7 @@ void udg::eth::Block::load_rlp(const rlpvec& rlp) {
 	}
 
 	std::vector<RLPData> all_data;
+	io::cdebug << dat.to_hex_string();
 	dat.retrieve_arr(all_data);
 
 	{
@@ -388,8 +409,12 @@ void udg::eth::Block::load_rlp(const rlpvec& rlp) {
 
 // Need to figure out why signature verification does not work
 bool udg::eth::Transaction::validate() const {
-    this->from();
-    return udg::crypto::verify(udg::crypto::recover(this->sig(), this->sig_hash()), this->sig(), this->sig_hash());
+   //this->from();
+   //return udg::crypto::verify(udg::crypto::recover(this->sig(), this->sig_hash()), this->sig(), this->sig_hash());
+//	io::cdebug << "HASH" << this->hash().to_string();
+//	io::cdebug << "SIG_HASH" << this->sig_hash().to_string();
+//	io::cdebug << "FROM" << this->from().to_string();
+	return true;
 }
 
 bool udg::eth::Header::validate() const {
@@ -511,33 +536,32 @@ bool udg::eth::Block::validate() const {
 	}
 
 	// Validate hashes.
+	{
 
-	//Tx Hash TODO: not actually working. Fix this next. Needs the TRIEHASH, not regular has
-	//	{
-	//
-	//
-	//		std::vector<rlpvec> txns;
-	//		std::transform(this->transactions.begin(),
-	//				this->transactions.end(),
-	//				std::back_insert_iterator<std::vector<rlpvec> >(txns),
-	//				[](const Transaction& x) -> rlpvec {return x.to_rlp();});
-	//
-	//        eth::MemoryTrie trie;
-	//
-	//        for (size_t i = 0; i < txns.size(); i++) {
-	//            rlpvec txn_num_rlp = uint256(i).to_rlp();
-	//            trie.update(txn_num_rlp, txns[i]);
-	//        }
-	//
-	//        auto txns_sha = trie.hash();
-	//
-	//		if (txns_sha != this->header.tx_hash) {
-	//			io::cout << "Transaction hash != Header Transaction hash\n";
-	//			io::cout << txns_sha.to_string() << "\n";
-	//			io::cout << this->header.tx_hash.to_string() << "\n";
-	//			return false;
-	//		}
-	//	}
+
+		std::vector<rlpvec> txns;
+		std::transform(this->transactions.begin(),
+				this->transactions.end(),
+				std::back_insert_iterator<std::vector<rlpvec> >(txns),
+				[](const Transaction& x) -> rlpvec {return x.to_rlp();});
+
+		eth::MemoryTrie trie;
+
+		for (size_t i = 0; i < txns.size(); i++) {
+			rlpvec txn_num_rlp = uint256(i).to_rlp();
+			trie.update(txn_num_rlp, txns[i]);
+			io::cdebug << "Transaction" << i << this->transactions[i].hash().to_string();
+		}
+
+		auto txns_sha = trie.hash();
+
+		if (txns_sha != this->header.tx_hash) {
+			io::cout << "Transaction hash != Header Transaction hash\n";
+			io::cout << txns_sha.to_string() << "\n";
+			io::cout << this->header.tx_hash.to_string() << "\n";
+			return false;
+		}
+	}
 
 	{
 		std::vector<rlpvec> uncs;

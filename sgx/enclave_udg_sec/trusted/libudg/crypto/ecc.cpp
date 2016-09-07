@@ -64,6 +64,7 @@ PublicKey udg::crypto::recover(Signature const& _sig, h256 const& _message) {
 }
 
 PublicKey udg::crypto::SignatureStruct::recover(const h256& _hash) const {
+//	io::cdebug << "SIGSTRUCT" << this->to_string();
 	return udg::crypto::recover((Signature)*this, _hash);
 }
 
@@ -204,4 +205,12 @@ KeyPair udg::crypto::KeyPair::create_enclave_pair() {
 
 	return udg::crypto::KeyPair::create_enclave_pair();
 
+}
+
+std::string udg::crypto::SignatureStruct::to_string() const {
+	std::string out;
+	out.append("R: ").append(this->r.to_string()).append("\n");
+	out.append("S: ").append(this->s.to_string()).append("\n");
+	out.append("V: ").append(udg::ulltostr(this->v));
+	return out;
 }
