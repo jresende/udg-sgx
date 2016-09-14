@@ -248,8 +248,8 @@ Action parse_args(int argc, const char* argv[]) {
 	}
 
 	if (first_arg.compare("process") == 0) {
-		if (argc < 5) {
-			std::cerr << "process switch requires a block, transaction hash, and proof (RLP-encoded) to be passed in."
+		if (argc < 3) {
+			std::cerr << "process switch requires a block (RLP-encoded) to be passed in."
 					<< std::endl;
 			return Action::ERROR;
 		}
@@ -428,7 +428,7 @@ int SGX_CDECL main(int argc, const char *argv[])
 			break;
 
     	case Action::PROCESS:
-    		ret = ecall_udg_process(global_eid, &ecall_return, argv[2], argv[3], argv[4]);
+    		ret = ecall_udg_process(global_eid, &ecall_return, argv[2]);
 			if (ret != SGX_SUCCESS || ecall_return != 0) {
 				print_failure();
 				return ecall_return;

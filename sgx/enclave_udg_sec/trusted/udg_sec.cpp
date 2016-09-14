@@ -7,12 +7,16 @@
 #include "libudg/ethereum/ethash.hpp"
 #include "libudg/ethereum/trie.hpp"
 #include "libudg/crypto/all_hash.hpp"
+#include "libudg/crypto/ez_seal.hpp"
 #include "libudg/hex_encode.hpp"
 #include "libudg/invoke.hpp"
 #include "libudg/io.hpp"
 #include <stdexcept>
 
 using namespace udg;
+
+const eth::Address contract_addr("0x1ebe783bfa886145b18c849afeedce2f24bb196d");
+const h256 genesis_hash("0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3");
 
 /* 
  * printf: 
@@ -116,36 +120,40 @@ int ecall_udg_size_epoch(int epoch) {
 	}
 }
 
-int ecall_udg_process(const char* blk, const char* proof, const char* transaction_hash) {
+int ecall_udg_process(const char* blk) {
+
+	// ensure this block immediately follows previous block.
+
 	try {
 		eth::Block b(blk);
 
 		auto h = b.hash();
+		io::cdebug << "Block rlp" << udg::hex_encode(b.to_rlp());
 
-		rlp::rlpvec dat = udg::hex_decode(proof);
-		{
-			rlp::RLPData proof_list;
-			proof_list.parse_bytes(dat.begin(), dat.end());
-
-			rlp::rlpdlist elements;
-			proof_list.retrieve_arr(elements);
-
-			rlp::rlplist proof;
-			for (auto& proof_d : elements) {
-				rlp::rlpvec elem;
-				proof_d.retrieve_bytes(elem);
-				proof.push_back(elem);
-			}
-
-//			if (!udg::eth::MemoryTrie::verify_proof(
-//					b.header.root,
-//					std::vector<uint8_t>(h.begin(), h.end()),
-//					proof
-//			)) {
-//				io::cout << "Invalid proof for block.";
-//				return -1;
+//		rlp::rlpvec dat = udg::hex_decode(proof);
+//		{
+//			rlp::RLPData proof_list;
+//			proof_list.parse_bytes(dat.begin(), dat.end());
+//
+//			rlp::rlpdlist elements;
+//			proof_list.retrieve_arr(elements);
+//
+//			rlp::rlplist proof;
+//			for (auto& proof_d : elements) {
+//				rlp::rlpvec elem;
+//				proof_d.retrieve_bytes(elem);
+//				proof.push_back(elem);
 //			}
-		}
+//
+////			if (!udg::eth::MemoryTrie::verify_proof(
+////					b.header.root,
+////					std::vector<uint8_t>(h.begin(), h.end()),
+////					proof
+////			)) {
+////				io::cout << "Invalid proof for block.";
+////				return -1;
+////			}
+//		}
 
 		if (!b.validate()) {
 			io::cout << "Block did not validate.";
@@ -154,29 +162,43 @@ int ecall_udg_process(const char* blk, const char* proof, const char* transactio
 			eth::ethash::clear_cache();
 		}
 
-		// Process transaction
-//		auto res = udg::invoke::process_transactions(b.transactions);
+		auto fname = contract_addr.to_string();
+		fname.append(".eth");
+		try {
+			io::file f(fname);
 
-//		 Add signature, then print.
-//		crypto::keccak256 ctxt;
-//		ctxt.update(&res[0], res.size());
-//		ctxt.finalize();
-//		h256 hash = ctxt.get_digest();
+			FixedSizedByteArray<1024> buf;
+			f.read(buf.data(), sgx_calc_sealed_data_size(0, h256::size));
 
-		bool verified_transaction = false;
-		auto t_hash = h256(transaction_hash);
+			auto phash = udg::crypto::unseal_data(buf.data(), h256::size);
+			h256 parent_hash(phash.begin(), phash.end());
+			io::cdebug << "Read hash"
+								<< parent_hash.to_string();
 
-		for (auto& t : b.transactions) {
-//			io::cdebug << "Transaction hash";
-//			io::cdebug << t.hash().to_string();
-//			io::cdebug << t.sig_hash().to_string();
-			if (t.hash() == t_hash) {
-				auto kp = udg::crypto::KeyPair::create_enclave_pair();
-				auto sig = udg::crypto::sign(kp.priv_key, t_hash);
-				io::cout << sig.to_string() << "\n";
-				return 0;
+			if (b.header.parent_hash != parent_hash) {
+				io::cout << "Block parent hash and stored previous block hash do not match!\n";
+				io::cout << "Block parent hash: " << b.header.parent_hash.to_string() << "\n";
+				io::cout << "Stored Parent: " << parent_hash.to_string() << "\n";
+				return 1;
+			}
+
+		} catch (std::runtime_error& e) {
+			if (b.header.parent_hash != genesis_hash) {
+				io::cout << "No data file and parent hash is not genesis block!\n";
+				return 1;
 			}
 		}
+
+		for (auto& t : b.transactions) {
+			if (t.recipient == contract_addr) {
+				io::cout << "Transaction " << t.hash().to_string() << " modifies contract " << contract_addr.to_string() << "\n";
+			}
+		}
+
+		io::file f(fname, "w+");
+		io::cdebug << "Writing hash" << b.hash().to_string();
+		auto d = udg::crypto::seal_data(b.hash().data(), h256::size);
+		f.write(&d[0], d.size());
 
 		return 0;
 	} catch (std::runtime_error& e) {
